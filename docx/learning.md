@@ -1,6 +1,6 @@
 # 学习进度与知识看板 (learning.md)
 
-> 当前状态：**TASK-004 已通关 ✅ ｜ 基础四大实战任务全部达成（2026-09-17）**
+> 当前状态：**阶段 6 开启 🟡 ｜ TASK-005 进行中（2026-09-17）**
 > 核心策略：**先理解 → 自己写 → 教练 Review → 纠错修改 → 总结归纳**
 
 ---
@@ -13,6 +13,7 @@
 | [`TASK-002`](./tasks/TASK-002-todo.md) | 经典待办清单 (Todo List) | ✅ 已通关 | `src/exercises/TASK-002-todo/TodoList.tsx` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-003`](./tasks/TASK-003-form.md) | 受控表单与多字段联动 | ✅ 已通关 | `src/exercises/TASK-003-form/UserForm.tsx` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-004`](./tasks/TASK-004-api.md) | 对接后端 API 与副作用处理 | ✅ 已通关 | `src/exercises/TASK-004-api/UserListApi.tsx` | 2026-09-17 · 验收通过，已通关归档 |
+| [`TASK-005`](./tasks/TASK-005-refactor-hook.md) | 组件拆分、父子通信与自定义 Hook | 🟡 进行中 | `src/exercises/TASK-005-refactor-hook/` | 正在进行概念精讲与架构拆分 |
 
 **TASK-004 总结**：
 - 深刻掌握了 React 副作用调度核心机制 `useEffect` 与依赖项数组 `[]`，彻底理解了函数组件纯函数约束与禁止顶层请求的底层原因；
@@ -20,7 +21,7 @@
 - 攻克了 Fetch API 异步可读流特性，避开了未 `await res.text()` 导致打印 `[object Promise]` 的典型陷阱；
 - 在本地快速搭建了 FastAPI 模拟后端，实现了跨域 CORS 配置、Pydantic DTO 强类型契约对齐、网络延迟与 500 故障压测。
 
-**下一步推荐目标**：进入 **阶段 6：组件拆分、父子通信与自定义 Hook 抽离**（将单文件重构为高内聚、低耦合的可复用业务组件）。
+**当前进行中**：[`TASK-005: 组件拆分、父子通信与自定义 Hook 抽离`](./tasks/TASK-005-refactor-hook.md)（掌握 Props 单向传递与回调通知、容器组件与展示组件分离、自定义 Hook 逻辑解耦）。
 
 ---
 
@@ -28,9 +29,9 @@
 
 - **当前路线**：从单组件综合实战向工程化组件拆分与自定义 Hook 进阶
 - **主攻方向**：
-  1. 父子组件 Props 通信与回调传递
-  2. 自定义 Hook（如 `useFetch` / `useDebounce`）抽离异步逻辑
-  3. 前端路由 React Router 与轻量全局状态管理
+  1. 容器组件（Smart Container）与展示组件（Dumb Presentational）的架构分离
+  2. 父子通信与 Props 契约设计（父传子只读参数，子传父回调事件）
+  3. 自定义 Hook（Custom Hook）的抽象范式与状态逻辑复用
 
 ---
 
@@ -43,7 +44,7 @@
 | **阶段 3** | **State 与交互 (useState)** | 理解组件重渲染机制、不可变数据原则、事件处理 | ✅ 阶段通关（TASK-001 通关） |
 | **阶段 4** | **列表、Key 与表单受控组件** | 掌握 `map` 渲染、Key 的底层机制、多表单受控输入 | ✅ 阶段通关（TASK-002, TASK-003 通关） |
 | **阶段 5** | **副作用与生命周期 (useEffect)** | 掌握数据请求、定时器清理、依赖项数组机制 | ✅ 阶段通关（TASK-004 通关） |
-| **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | 🟡 下一推荐阶段 |
+| **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | 🟡 进行中（当前攻坚 TASK-005） |
 | **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | ⚪ 未开始 |
 | **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | ⚪ 未开始 |
 
@@ -81,10 +82,11 @@
   - [ ] `interface` 属性定义（可选 `?`、只读 `readonly`）
   - [ ] `interface` 与 `type` 的区别与取舍
   - [ ] 联合类型 (`|`) 与 字面量类型
-- [ ] **进阶架构点（阶段 6 规划）**：
-  - [ ] 组件拆分原则（容器组件 vs UI 展示组件）
-  - [ ] Props 回调函数向上传递与状态提升（Lifting State Up）
-  - [ ] 自定义 Hook（Custom Hooks）逻辑复用
+- [ ] **TASK-005 技能点（进行中）**：
+  - [ ] 自定义 Hook（Custom Hook）开发范式：提取异步逻辑到 `useUsers`
+  - [ ] 容器组件 vs 展示组件（Smart vs Dumb）关注点分离
+  - [ ] Props 只读心智与 TypeScript 契约声明
+  - [ ] 子传父回调通信（`onKeywordChange: (val: string) => void`）
 
 ---
 

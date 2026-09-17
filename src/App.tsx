@@ -3,8 +3,9 @@ import { Counter } from './exercises/TASK-001-counter/Counter';
 import { TodoList } from './exercises/TASK-002-todo/TodoList';
 import { UserForm } from './exercises/TASK-003-form/UserForm';
 import { UserListApi } from './exercises/TASK-004-api/UserListApi';
+import { UserManager } from './exercises/TASK-005-refactor-hook/UserManager';
 
-type TaskId = 'overview' | 'counter' | 'todo' | 'form' | 'api';
+type TaskId = 'overview' | 'counter' | 'todo' | 'form' | 'api' | 'manager';
 
 interface TaskMeta {
   id: TaskId;
@@ -16,7 +17,7 @@ interface TaskMeta {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TaskId>('api');
+  const [activeTab, setActiveTab] = useState<TaskId>('manager');
 
   const tasks: TaskMeta[] = [
     {
@@ -50,6 +51,14 @@ export function App() {
       component: <UserListApi />,
       description: '在 useEffect 中异步请求后端 API，管理 Loading、Error、Data 三种状态。',
       filePath: 'src/exercises/TASK-004-api/UserListApi.tsx',
+    },
+    {
+      id: 'manager',
+      name: 'TASK-005 组件解耦',
+      badge: 'Props通信 & 自定义Hook',
+      component: <UserManager />,
+      description: '拆分 Smart 容器与 Dumb 展示组件，将异步数据逻辑封装为自定义 Hook。',
+      filePath: 'src/exercises/TASK-005-refactor-hook/UserManager.tsx',
     },
     {
       id: 'overview',
