@@ -37,3 +37,35 @@
   - **解决方案（函数式更新）**：如果下一次更新依赖于前一次更新的最新结果，应传入 updater 回调函数：
     `setCount(prev => prev + 1); setCount(prev => prev + 1);`，此时 React 会按队列链式计算，最终加 2。
 - **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-SR-04: 如何理解 React 的“纯渲染逻辑”、“常量快照”、“界面重渲染”与“更新意图”？
+- **提问背景**：从 Java 的“就地修改对象成员变量”转向 React 声明式 UI 时，容易对组件生命期与状态更新链路产生困惑。
+- **核心解答 (Answer)**：
+  1. **纯渲染逻辑 (Pure Render Logic)**：组件函数本质是一个纯数学映射：`UI = f(state, props)`。给它什么入参和状态，它就返回对应的虚拟 DOM 结构（JSX），执行时不产生突变副作用。
+  2. **常量快照 (Snapshot)**：组件每一次被调用执行时，`const [count] = useState(...)` 中的 `count` 是在当前执行栈作用域中锁死的常量值。它记录的是“这一帧画面”的数据状态。
+  3. **更新意图 (Update Intent)**：`setCount(nextVal)` 不是在当前栈帧内修改 `count`，而是向 React 调度器派发一个更新任务（类似提交一个 Job/Event），告诉 React：“在下一次渲染这一组件时，请把状态设为 `nextVal`”。
+  4. **界面重渲染 (Re-render)**：React 调度器接收到更新意图后，重新调用一次该组件函数生成新的虚拟 DOM 树，与上一帧进行 Diff 比对，只将发生变化的部分同步更新至真实 DOM。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 相当于 Spring MVC / Thymeleaf 模板渲染逻辑：
+    - 组件函数 = 带有入参的 Controller 渲染方法；
+    - 常量快照 = 方法栈局部变量 `final int count = 0`；
+    - 直接改变量无效 = 在方法返回 HTML 之后偷偷改栈内变量毫无意义；
+    - `setCount` 与重渲染 = 客户端提交新请求触发 Controller 方法带着新数据再次执行一遍，返回新视图。
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-SR-05: Vue 与 React 在响应式与渲染机制上也是同样的逻辑吗？
+- **提问背景**：Vue 可以直接 `count.value++` 界面就发生改变，而 React 必须调用 `setCount` 且强调快照与不可变。两者底层逻辑有何本质不同？
+- **核心解答 (Answer)**：
+  - **根本不同，两者的哲学相反**：
+    - **Vue：响应式代理拦截 (Proxy / Getter & Setter)**。`<script setup>` 逻辑**只初始化执行一次**。变量是长期存活的响应式代理对象，属性被修改时 setter 自动拦截并精准通知依赖更新。没有“每一帧常量快照”的概念，允许直接突变（Mutable）。
+    - **React：不可变数据 + 函数反复重跑 (Re-render & VDOM Diff)**。没有属性拦截魔法。状态更新时，整个函数组件被从头到尾**重新调用一次**。每一次调用都产生新的作用域快照（Immutable Snapshot）。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - **Vue 类似于 Spring AOP 动态代理 / Hibernate 脏检查**：调用 `user.setName("Tom")`，表面是直接改属性，实际被 CGLIB/Proxy 拦截并记录脏状态，自动触发同步。
+  - **React 类似于 Java 函数式编程 / Record 不可变流水线 / Event Sourcing**：所有数据都是不可变的（`final`），想要新状态必须显式创建新实例并提交 Event，促使整条流水线重新计算。
+- **掌握标记**：[ ] 待主动回忆
+
+

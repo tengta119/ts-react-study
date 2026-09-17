@@ -23,14 +23,6 @@
 
 ---
 
-## 🧠 动手前思考（请先回答给教练！）
-
-1. 请先用 TypeScript 写出单条待办项的数据接口契约 `interface TodoItem`，里面需要哪些字段？
-2. 在删除某一条待办时，你会选择用 JavaScript 数组的 `splice` 还是 `filter`？为什么？
-3. 在渲染列表遍历数组时，`<div key={???}>` 里的 `key` 应该填什么？为什么强烈不建议填 `index`？
-
----
-
 ## 🧰 所需知识点与提示
 
 - TypeScript `interface TodoItem { id: string; text: string; completed: boolean; }`
@@ -39,6 +31,11 @@
   - 切换状态：`todos.map(item => item.id === id ? { ...item, completed: !item.completed } : item)`
   - 删除：`todos.filter(item => item.id !== id)`
 - 条件过滤：派生状态（Derived State），不需要再存一个新的 state，直接在渲染时计算即可！
+
+### ⚠️ 编码前必读的 2 个坑
+
+- **删除用 `filter`，不要用 `splice`**：`splice` 会原地修改原数组，React 拿到的引用没变 → 不触发重渲染。
+- **`key` 不要填 `index`**：`key` 是 React 识别“这一项是谁”的身份标识；用 `index` 时，删除/重排会让身份错位，导致勾选状态串行、输入框内容错乱。请用稳定的 `id`。
 
 ---
 

@@ -23,11 +23,18 @@
 
 ---
 
-## 🧠 动手前思考（请先回答给教练！）
+## 🧰 所需知识点与提示
 
-1. 表单有 4 个字段，你是准备写 4 个独立的 `useState`，还是用一个对象类型的 `useState<FormData>`？各自的优缺点是什么？
-2. 在表单提交时，为什么要显式写 `e.preventDefault()`？这与传统 Spring MVC / JSP 表单提交有何区别？
-3. 如果用一个通用的 `handleChange` 函数处理所有输入框的变更，应该如何利用 input 的 `name` 属性和 TS 的类型？
+- 多字段状态的组织方式：既可以写 4 个独立 `useState`，也可以用一个对象 `useState<FormData>`；本任务推荐后者，顺便练习“一个 `handleChange` 处理所有字段”。
+- 提交事件类型：`React.FormEvent<HTMLFormElement>`；`e.preventDefault()` 用于阻止浏览器默认的表单提交跳转（不写会导致页面刷新、state 全丢）。
+- 通用变更处理思路：利用 input 的 `name` 属性 + 计算属性名动态更新。
+- 校验错误信息建议统一在一个结构里管理（如 `Record<string, string>`），而不是每个字段开一个 error state。
+- 派生值：提交按钮的 `disabled` 由 `agree` 直接算出，不要另存 state。
+
+### ⚠️ 编码前必读的 2 个坑
+
+- **受控组件必须同时给 `value` 和 `onChange`**：只给 `value` 不给 `onChange`，输入框会直接变成只读，React 还会在控制台告警。
+- **`role` 这类下拉框的值是 `string`**：即使你想用联合类型 `'DEVELOPER' | 'ARCHITECT'`，从事件里拿到的也只是一个宽泛的 `string`，需要断言或先校验再赋值。
 
 ---
 

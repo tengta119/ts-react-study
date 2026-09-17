@@ -9,7 +9,7 @@ import React, { useState } from 'react';
  * 3. 实现 加、减、重置 按钮的点击处理
  * 4. 样式增强：当 count > 0 时数字显示绿色，count < 0 显示红色，count === 0 显示灰色
  *
- * ⚠️ 记住原则：先在聊天框中告诉教练你的设计思路，得到反馈后再动手编码！
+ * ⚠️ 记住原则：自己构思、自己写、自己调！遇到拿不准的地方随时问教练，写完再交给教练 Review！
  */
 
 export const Counter: React.FC = () => {
@@ -19,15 +19,17 @@ export const Counter: React.FC = () => {
   // TODO: 2. 声明 step（步长）的状态，默认为 1
   const [step, setStep] = useState<number>(1);
 
+  const isInvalidStep = step <= 0 || Number.isNaN(step)
+
   // TODO: 3. 实现事件处理函数
   const handleIncrement = () => {
     // TODO: 实现增加逻辑（当前仅为类型占位，请修改）
-    setCount(count);
+    setCount(prevState => prevState + step);
   };
 
   const handleDecrement = () => {
     // TODO: 实现减少逻辑（当前仅为类型占位，请修改）
-    setCount(count);
+    setCount(prevState => prevState - step);
   };
 
   const handleReset = () => {
@@ -60,7 +62,7 @@ export const Counter: React.FC = () => {
           id="step-input"
           type="number"
           value={step}
-          onChange={(e) => setStep(Number(e.target.value) || 1)}
+          onChange={(e) => setStep(Number(e.target.value))}
           style={{ width: '60px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #d1d5db' }}
         />
       </div>
@@ -70,6 +72,7 @@ export const Counter: React.FC = () => {
         <button
           onClick={handleDecrement}
           style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}
+          disabled={isInvalidStep}
         >
           -{step}
         </button>
@@ -81,6 +84,7 @@ export const Counter: React.FC = () => {
         </button>
         <button
           onClick={handleIncrement}
+          disabled={isInvalidStep}
           style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', background: '#3b82f6', color: '#fff' }}
         >
           +{step}

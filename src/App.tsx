@@ -159,8 +159,8 @@ export function App() {
 
             <h3>1. 核心学习循环</h3>
             <ol>
-              <li>打开 <code>docx/tasks/</code> 目录下的任务卡片，先在对话中<strong>陈述你的设计思路与 State 结构</strong>；</li>
-              <li>教练确认思路无误后，打开 <code>{currentTask.filePath}</code> 开始自主编写；</li>
+              <li>打开 <code>docx/tasks/</code> 目录下的任务卡片，阅读业务需求、API 提示与「编码前必读的坑」；</li>
+              <li>直接打开 <code>{currentTask.filePath}</code> 自主编写代码，随时向教练提问（无需先答辩思路）；</li>
               <li>在浏览器中实时观察效果；</li>
               <li>在对话中输入 <code>/review</code> 请求教练做深度审查；</li>
               <li>根据指出的问题自主修改，并在 <code>docx/mistakes.md</code> 中记录踩坑原因。</li>
@@ -171,7 +171,7 @@ export function App() {
               <li><code>/review</code>：对当前正在写的代码做全方位 Code Review（不给答案，只挑漏洞和引导提问）；</li>
               <li><code>/quiz</code>：口试模式，从问答库随机出题检验 React/TS 底层原理；</li>
               <li><code>/qa</code>：将刚探讨的问答一键沉淀到 <code>docx/questions/</code> 对应分类；</li>
-              <li><code>/task 001</code>：快速唤起指定任务进行答辩；</li>
+              <li><code>/task 001</code>：开启指定任务，获取概念精讲与任务卡；</li>
               <li><code>/explain [概念]</code>：按“底层机制 + Java 类比”五步法深度讲解概念；</li>
               <li><code>/mistake</code>：将刚才犯的典型错误复盘记录到 <code>docx/mistakes.md</code>。</li>
             </ul>

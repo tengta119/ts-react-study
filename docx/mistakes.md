@@ -42,3 +42,25 @@
   **“React 状态不可变，修改必须换新脸（创建新对象）。”**
 
 ---
+
+### [2026-09-17] JS 假值（Falsy）短路求值导致合法数字 0 被意外吞掉
+- **错误现象**：
+  ```tsx
+  onChange={(e) => setStep(Number(e.target.value) || 1)}
+  ```
+  在输入框中输入 `0` 时，输入框强制变回 `1`，无法输入 0，导致业务无法接收 `<= 0` 的步长输入并触发边界告警。
+- **Java 思维惯性**：
+  在 Java 中，逻辑或 `||` 只能操作 `boolean`。在后端做默认值回退时，通常使用 `val != null ? val : 1` 或 `Optional.ofNullable(val).orElse(1)`，只有为 `null` 时才兜底，`0` 依然是有效合法整数。但在 JS 中很多初学者习惯性用 `a || b` 偷懒做默认值。
+- **底层根因**：
+  JavaScript 中存在隐式类型转换（Type Coercion），数字 `0`、空字符串 `""`、`NaN`、`null`、`undefined` 都是假值（Falsy）。当 `Number(e.target.value)` 得到 `0` 时，`0 || 1` 直接被短路判定为假，回退到 `1`。
+- **正确做法**：
+  应精确判断是否为 `NaN`，或者使用 ES2020 的空值合并运算符 `??`（Nullish Coalescing），或直接保留转换值，在派生逻辑中统一校验边界：
+  ```tsx
+  const nextVal = Number(e.target.value);
+  setStep(Number.isNaN(nextVal) ? 0 : nextVal);
+  ```
+- **避坑口诀**：
+  **“数值兜底莫用 `||`，数字为 0 变假值；非空合并用 `??`，或者显式判 NaN。”**
+
+---
+

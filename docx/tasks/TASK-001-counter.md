@@ -21,15 +21,6 @@
 
 ---
 
-## 🧠 动手前思考（请先回答给教练！）
-
-在打开编辑器写代码前，请在聊天框中先回答以下 3 个问题：
-1. 这个组件一共需要几个 `useState`？它们各自的数据类型（TypeScript 类型）是什么？
-2. 如果连续点击两次“增加”，在同一个事件函数里写两次 `setCount(count + 1)`，最终数字会加 1 还是加 2？为什么？
-3. 如果步长支持用户在 `<input type="number" />` 里输入，事件对象的 TypeScript 类型应该是什么？输入框的值在 JS 里默认是 `string` 还是 `number`？
-
----
-
 ## 🧰 所需知识点与 API 提示
 
 - `useState<number>(initialValue)`
@@ -37,11 +28,20 @@
 - React 输入框改变事件：`onChange={(e: React.ChangeEvent<HTMLInputElement>) => ...}`
 - 条件渲染与动态样式：`className` 或行内样式 `style={{ color: count > 0 ? 'green' : 'red' }}`
 
+### ⚠️ 编码前必读的 2 个坑
+
+- **状态快照**：在同一个事件函数里连写两次 `setCount(count + 1)`，结果只加 1（`count` 是本次渲染的固定快照）；需要连续累加时改用函数式更新 `setCount(prev => prev + step)`。
+- **input 的值永远是 string**：即使写了 `type="number"`，`e.target.value` 运行时也仍是 `string`，必须显式转换；且输入框可能给出空串或 `-`，转换后会得到 `NaN`，需要处理这个边界。
+
 ---
 
 ## 🏆 验收标准 (DoD - Definition of Done)
 
-- [ ] 界面能正常完成加、减、重置操作；
-- [ ] 步长可以调整且计算正确；
-- [ ] 代码通过 TypeScript 类型检查，无 `any` 警告；
-- [ ] 向教练提交代码，完成 Code Review 并修复所有问题。
+- [x] 界面能正常完成加、减、重置操作；
+- [x] 步长可以调整且计算正确；
+- [x] 代码通过 TypeScript 类型检查，无 `any` 警告；
+- [x] 向教练提交代码，完成 Code Review 并修复所有问题。
+
+> **通关归档时间**：2026-09-17  
+> **教练评审结论**：✅ 验收通过（状态快照心智与派生状态边界防御达标）
+

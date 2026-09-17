@@ -19,14 +19,6 @@
 
 ---
 
-## 🧠 动手前思考（请先回答给教练！）
-
-1. 在 Spring Boot 中，后端返回的标准响应体通常类似 `Result<T> { code, message, data }`。在 TypeScript 中，你该如何定义这个 API 响应契约？
-2. 为什么要将 API 请求写在 `useEffect` 内部，而不能直接写在组件函数顶层？如果直接在组件顶层写 `fetch()` 会发生什么？
-3. 在 `useEffect` 的清理函数（cleanup）中，如果用户在请求未完成前就离开了该页面，如何使用浏览器的 `AbortController` 优雅取消请求？
-
----
-
 ## 🧰 所需知识点与提示
 
 - TypeScript 接口声明：
@@ -52,6 +44,12 @@
     return () => { ignore = true; };
   }, []);
   ```
+
+### ⚠️ 编码前必读的 2 个坑
+
+- **绝不要在组件函数顶层直接 `fetch()`**：组件函数每次渲染都会重新执行，会造成请求风暴甚至无限循环；请求要么放在 `useEffect`，要么放在事件处理器里。
+- **组件卸载后不要再 `setState`**：用 `let ignore = false` + 清理函数置为 `true` 来忽略过期响应，或使用 `AbortController` 真正取消请求。
+- **三个状态要同时维护好**：`loading` / `error` / `users` 必须互斥清晰（例如请求开始时 `setError(null)`），否则会出现“又转圈又报错”的矛盾 UI。
 
 ---
 

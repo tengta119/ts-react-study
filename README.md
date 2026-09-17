@@ -3,7 +3,7 @@
 本项目是专为 **Java 后端开发背景** 设计的 **TypeScript + React 刻意练习与实战系统**。
 
 核心原则：**“不当代写机器，专注教练与陪练”**。
-通过 **“概念理解 → 动手前思考 → 自主编码 → 教练 Review → 纠错修改 → 总结沉淀”** 循环，彻底掌握前端开发能力。
+通过 **“概念理解 → 自主编码 → 教练 Review → 纠错修改 → 总结沉淀”** 循环，彻底掌握前端开发能力。
 
 ---
 
@@ -63,9 +63,8 @@ vite-project/
    在浏览器中打开 `http://localhost:5173`，即可看到**交互式学习工作台**。
 
 2. **开始第一个任务**：
-   - 打开 `docx/tasks/TASK-001-counter.md`；
-   - 阅读“动手前思考”，在对话中向教练汇报你的设计思路；
-   - 在 `src/exercises/TASK-001-counter/Counter.tsx` 中编写代码；
+   - 打开 `docx/tasks/TASK-001-counter.md`，阅读业务需求、API 提示与「编码前必读的坑」；
+   - 直接在 `src/exercises/TASK-001-counter/Counter.tsx` 中编写代码（无需先向教练答辩思路）；
    - 编写完毕后向教练发起 Review：输入 `/review`。
 
 ---
@@ -77,7 +76,7 @@ vite-project/
 | `/review` | 请求教练对当前代码进行严格 Code Review | `/review Counter.tsx` |
 | `/quiz` | 开启 React / TS 面试式口试（从 `docx/questions/` 抽查） | `/quiz` 或 `/quiz hooks` |
 | `/qa` | 将刚才的提问与教练解答一键整理沉淀到对应分类文件 | `/qa ts 鸭子类型` |
-| `/task` | 查看指定任务目标与答辩引导 | `/task 001` |
+| `/task` | 开启指定任务：加载任务卡与概念精讲 | `/task 001` |
 | `/explain` | 按“底层机制 + Java 类比”五步法深度讲解概念 | `/explain useEffect依赖项` |
 | `/mistake` | 将刚才排查出的错误与根因复盘记录到 docx/mistakes.md | `/mistake` |
 | `/coach` | 召唤教练汇报当前学习进度与下一步建议 | `/coach` |
