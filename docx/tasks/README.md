@@ -14,7 +14,7 @@
 | [TASK-002](./TASK-002-todo.md) | **经典 Todo 清单** | 数组不可变更新 (`map/filter`), 列表 Key, 受控输入 | ⭐⭐ | ✅ 已通关（2026-09-17） |
 | [TASK-003](./TASK-003-form.md) | **受控表单与多字段联动** | 表单事件类型, 统一 State 管理, 基础校验提示 | ⭐⭐ | ✅ 已通关（2026-09-17） |
 | [`TASK-004`](./TASK-004-api.md) | **调用后端 API 联调 (对接 Spring/FastAPI)** | `useEffect`, 数据请求, Loading/Error 状态, DTO 类型契约 | ⭐⭐⭐ | ✅ 已通关（2026-09-17） |
-| [`TASK-005`](./TASK-005-refactor-hook.md) | **组件拆分、父子通信与自定义 Hook 抽离** | Props 只读与回调, 容器/展示组件解耦, `useCustomHook` | ⭐⭐⭐ | 🟡 进行中 |
+| [`TASK-005`](./TASK-005-refactor-hook.md) | **组件拆分、父子通信与自定义 Hook 抽离** | Props 只读与回调, 容器/展示组件解耦, 泛型 `useFetch<T>` | ⭐⭐⭐ | ✅ 已通关（2026-09-17） |
 
 ---
 

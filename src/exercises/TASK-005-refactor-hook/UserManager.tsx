@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useUsers } from './useUsers';
+import { useUsers} from './useUsers';
 import { UserSearchBar } from './components/UserSearchBar';
 import { UserCard } from './components/UserCard';
 
@@ -14,8 +14,7 @@ import { UserCard } from './components/UserCard';
  */
 export const UserManager: React.FC = () => {
   // 1. 从自定义 Hook 中获取数据状态与刷新方法
-  const { users, loading, error, refetch } = useUsers();
-
+  const { users, loading, error, refetch, removeUser } = useUsers();
   // 2. 局部交互状态：搜索关键字
   const [keyword, setKeyword] = useState<string>('');
 
@@ -65,7 +64,7 @@ export const UserManager: React.FC = () => {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             {filteredUsers.map((user) => (
-              <UserCard key={user.id} user={user} />
+              <UserCard key={user.id} user={user} onDelete={removeUser}/>
             ))}
           </div>
         )

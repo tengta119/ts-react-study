@@ -9,9 +9,10 @@ import type { ApiUser } from '../types';
  */
 export interface UserCardProps {
   user: ApiUser;
+  onDelete: (id: number) => void;
 }
 
-export const UserCard: React.FC<UserCardProps> = ({ user }) => {
+export const UserCard: React.FC<UserCardProps> = ({ user, onDelete }) => {
   return (
     <div
       style={{
@@ -34,6 +35,22 @@ export const UserCard: React.FC<UserCardProps> = ({ user }) => {
       <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>✉️ {user.email}</p>
       <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>🏢 {user.company?.name || '个人开发者'}</p>
       <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>📞 {user.phone}</p>
+        <button
+            onClick={() => onDelete(user.id)}
+            style={{
+                alignSelf: 'flex-end',
+                marginTop: '8px',
+                padding: '4px 10px',
+                backgroundColor: '#fee2e2',
+                color: '#ef4444',
+                border: '1px solid #fca5a5',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+            }}
+        >
+            🗑️ 移除此人
+        </button>
     </div>
   );
 };

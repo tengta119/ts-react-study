@@ -1,6 +1,6 @@
 # 学习进度与知识看板 (learning.md)
 
-> 当前状态：**阶段 6 开启 🟡 ｜ TASK-005 进行中（2026-09-17）**
+> 当前状态：**阶段 6 圆满通关 ✅ ｜ 推荐开启阶段 7（React Router 前端路由）（2026-09-17）**
 > 核心策略：**先理解 → 自己写 → 教练 Review → 纠错修改 → 总结归纳**
 
 ---
@@ -13,25 +13,27 @@
 | [`TASK-002`](./tasks/TASK-002-todo.md) | 经典待办清单 (Todo List) | ✅ 已通关 | `src/exercises/TASK-002-todo/TodoList.tsx` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-003`](./tasks/TASK-003-form.md) | 受控表单与多字段联动 | ✅ 已通关 | `src/exercises/TASK-003-form/UserForm.tsx` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-004`](./tasks/TASK-004-api.md) | 对接后端 API 与副作用处理 | ✅ 已通关 | `src/exercises/TASK-004-api/UserListApi.tsx` | 2026-09-17 · 验收通过，已通关归档 |
-| [`TASK-005`](./tasks/TASK-005-refactor-hook.md) | 组件拆分、父子通信与自定义 Hook | 🟡 进行中 | `src/exercises/TASK-005-refactor-hook/` | 正在进行概念精讲与架构拆分 |
+| [`TASK-005`](./tasks/TASK-005-refactor-hook.md) | 组件拆分、父子通信与自定义 Hook | ✅ 已通关 | `src/exercises/TASK-005-refactor-hook/` | 2026-09-17 · 验收通过，已通关归档 |
 
-**TASK-004 总结**：
-- 深刻掌握了 React 副作用调度核心机制 `useEffect` 与依赖项数组 `[]`，彻底理解了函数组件纯函数约束与禁止顶层请求的底层原因；
-- 完美实现了前端异步数据交互的工业级“四态闭环”（Loading 加载态 / Error 异常态 / Empty 空数据态 / Data 成功渲染态）；
-- 攻克了 Fetch API 异步可读流特性，避开了未 `await res.text()` 导致打印 `[object Promise]` 的典型陷阱；
-- 在本地快速搭建了 FastAPI 模拟后端，实现了跨域 CORS 配置、Pydantic DTO 强类型契约对齐、网络延迟与 500 故障压测。
+**TASK-005 总结**：
+- 深刻掌握了 Smart 容器组件（`UserManager`）与 Dumb 纯展示组件（`UserCard`, `UserSearchBar`）的单一职责架构；
+- 熟练运用“Props 向下单向流动，事件通过回调向上通知（Events Up）”的 React 通信黄金法则；
+- 掌握了方法引用语法糖与 Java 8 `Consumer<T>` 的心智对应（`onKeywordChange={setKeyword}`）；
+- 掌握了形参解构赋值 `{ user, onDelete }` 的精准作用域边界，杜绝 TS2304 报错；
+- 独立完成泛型基础设施 Hook `useFetch<T>`，并利用解构重命名（`data: users`）在领域层优雅组合出 `useUsers`；
+- 成功闭环了子组件向上传递 `onDelete(id)` 并驱动父级数据不可变过滤。
 
-**当前进行中**：[`TASK-005: 组件拆分、父子通信与自定义 Hook 抽离`](./tasks/TASK-005-refactor-hook.md)（掌握 Props 单向传递与回调通知、容器组件与展示组件分离、自定义 Hook 逻辑解耦）。
+**下一步推荐目标**：开启 **阶段 7：React Router 前端路由与多页面导航**（构建真正的单页多页面 SPA 应用，掌握路由切换、动态参数与导航栏激活）。
 
 ---
 
 ## 🎯 当前学习阶段
 
-- **当前路线**：从单组件综合实战向工程化组件拆分与自定义 Hook 进阶
+- **当前路线**：从组件解耦架构向前端单页路由（SPA Routing）进阶
 - **主攻方向**：
-  1. 容器组件（Smart Container）与展示组件（Dumb Presentational）的架构分离
-  2. 父子通信与 Props 契约设计（父传子只读参数，子传父回调事件）
-  3. 自定义 Hook（Custom Hook）的抽象范式与状态逻辑复用
+  1. React Router 核心机制（`BrowserRouter`, `Routes`, `Route`, `Link`, `NavLink`）
+  2. 动态路由传参（`useParams` / `useNavigate`）
+  3. 嵌套路由与全局布局（Layout & Outlet）
 
 ---
 
@@ -44,8 +46,8 @@
 | **阶段 3** | **State 与交互 (useState)** | 理解组件重渲染机制、不可变数据原则、事件处理 | ✅ 阶段通关（TASK-001 通关） |
 | **阶段 4** | **列表、Key 与表单受控组件** | 掌握 `map` 渲染、Key 的底层机制、多表单受控输入 | ✅ 阶段通关（TASK-002, TASK-003 通关） |
 | **阶段 5** | **副作用与生命周期 (useEffect)** | 掌握数据请求、定时器清理、依赖项数组机制 | ✅ 阶段通关（TASK-004 通关） |
-| **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | 🟡 进行中（当前攻坚 TASK-005） |
-| **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | ⚪ 未开始 |
+| **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | ✅ 阶段通关（TASK-005 通关） |
+| **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | 🟡 下一推荐阶段 |
 | **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | ⚪ 未开始 |
 
 ---
@@ -73,6 +75,12 @@
 - [x] **Fetch 异步流读取与异常捕获**：掌握 `await res.text()` / `await res.json()` 提取响应体，杜绝 `[object Promise]` 陷阱
 - [x] **JSX 三元条件分支**：熟练运用 `condition ? <A /> : <B />` 处理列表与空状态切换
 - [x] **前后端 RESTful DTO 对齐**：跨域 CORS 放行与强类型契约无缝对接
+- [x] **Smart vs Dumb 架构解耦**：容器组件管数据与编排，展示组件管纯排版
+- [x] **Props 只读与事件回调通信**：掌握“Props Down, Events Up”数据流向
+- [x] **方法引用传参**：`onKeywordChange={setKeyword}` 类比 Java 8 `this::setKeyword`
+- [x] **自定义 Hook 抽象范式**：封装 `useFetch<T>` 泛型基础设施与 `useUsers` 业务领域服务
+- [x] **解构别名与适配器模式**：`{ data: users, setData: setUsers }` 实现强类型领域映射
+- [x] **子传父删除联动**：`onDelete(user.id)` 回调通知父组件触发不可变移出
 
 ---
 
@@ -82,11 +90,11 @@
   - [ ] `interface` 属性定义（可选 `?`、只读 `readonly`）
   - [ ] `interface` 与 `type` 的区别与取舍
   - [ ] 联合类型 (`|`) 与 字面量类型
-- [ ] **TASK-005 技能点（进行中）**：
-  - [ ] 自定义 Hook（Custom Hook）开发范式：提取异步逻辑到 `useUsers`
-  - [ ] 容器组件 vs 展示组件（Smart vs Dumb）关注点分离
-  - [ ] Props 只读心智与 TypeScript 契约声明
-  - [ ] 子传父回调通信（`onKeywordChange: (val: string) => void`）
+- [ ] **阶段 7 核心知识点（待开启）**：
+  - [ ] 前端路由 SPA 机制：为什么切换页面不刷新整页？
+  - [ ] React Router 核心组件：`BrowserRouter`, `Routes`, `Route`, `Link`, `NavLink`
+  - [ ] 动态路由与 Hooks：`useParams` 提取 `:id`、`useNavigate` 编程式跳转
+  - [ ] 嵌套路由与布局卡槽：`Layout` + `<Outlet />`
 
 ---
 
@@ -101,3 +109,6 @@
 5. 对象字面量中的 `[name]: value` 是什么意思？与 `name: value` 有何本质区别？（详见 `docx/questions/typescript.md` Q-TS-06）
 6. 为什么 `useEffect` 的回调不能直接声明为 `async`？如何正确发起异步请求？（详见 `docx/questions/hooks.md` Q-HK-03）
 7. 在 JSX 中如何优雅处理“空数据态 (Empty State)”？为什么 JSX 里不能直接写 `if-else`？（详见 `docx/questions/react-core.md` Q-RC-05）
+8. 什么是 Props 和事件回调？父子组件通信的底层机制是什么？（详见 `docx/questions/react-core.md` Q-RC-06）
+9. 为什么可以直接写 `onKeywordChange={setKeyword}`？它实际是一个函数吗？（详见 `docx/questions/react-core.md` Q-RC-07）
+10. 为什么在 Props 接口中定义了属性，组件内依然报 TS2304？（详见 `docx/questions/react-core.md` Q-RC-08）

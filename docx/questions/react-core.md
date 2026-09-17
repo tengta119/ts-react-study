@@ -94,4 +94,98 @@
   ```
 - **掌握标记**：[ ] 待主动回忆
 
+---
+
+### Q-RC-06: 什么是 Props 和事件回调？父子组件通信的底层机制是什么？
+- **提问背景**：刚开始做组件拆分时，初学者对“父传子”和“子传父”的数据流动机制缺乏直观认知。
+- **核心解答 (Answer)**：
+  1. **Props (Properties / 属性)**：
+     - **父传子**的唯一通道。父组件在 JSX 中以类似 HTML 属性的方式传递数据；
+     - 本质是**子组件函数唯一的只读对象入参**；
+     - **不可变原则**：子组件严禁直接修改 Props 中的任何属性。
+  2. **事件回调 (Event Callback)**：
+     - **子传父**的标准范式。在 JavaScript 中函数是“一等公民”，父组件可以把一个可执行的函数作为 Prop 传递给子组件；
+     - 当子组件内部触发原生事件（如用户在 input 打字、点击按钮）时，子组件不直接修改数据，而是**调用父组件传下来的函数**（如 `props.onKeywordChange(newVal)`）；
+     - 控制权跳回父组件，父组件调用自己的 `setState` 更新数据，驱动组件树重新渲染。
+  3. **总结一句话法则**：
+     > **“Props 单向向下流动（Props Down），事件通过回调向上通知（Events Up）。”**
+- **Java / 后端对照视角 (Java Mapping)**：
+  - **Props** ⇄ Java 方法的 `final DTO` 只读入参；
+  - **事件回调** ⇄ **观察者模式 (Observer Pattern) / 监听器接口 (Listener)** 或函数式接口 `Consumer<T>`。
+- **正反代码对照**：
+  ```tsx
+  // 1. 父组件：拥有状态，把状态作为数据向下传，把修改函数作为回调向下传
+  function Parent() {
+    const [name, setName] = useState("张三");
+    return <Child name={name} onNameChange={(val) => setName(val)} />;
+  }
+
+  // 2. 子组件：接收只读 Props，触发事件时调用父组件的回调函数
+  interface ChildProps {
+    name: string;
+    onNameChange: (val: string) => void;
+  }
+  function Child(props: ChildProps) {
+    // ❌ 严禁直接改 props: props.name = "李四";
+    // ✅ 正确做法：调用回调通知父组件去改
+    return <input value={props.name} onChange={(e) => props.onNameChange(e.target.value)} />;
+  }
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-RC-07: 为什么可以直接写 `onKeywordChange={setKeyword}`？它实际是一个函数吗？
+- **提问背景**：初学者在看到父组件传参 `<UserSearchBar onKeywordChange={setKeyword} />` 时，不确定 `onKeywordChange` 到底是不是函数，以及为什么不需要写括号 `()`。
+- **核心解答 (Answer)**：
+  1. **它 100% 是一个函数**：
+     - 在 TypeScript 接口定义中：`onKeywordChange: (value: string) => void` 明确规定它是一个入参为 `string`、无返回值的函数；
+     - `const [keyword, setKeyword] = useState('')` 中，`setKeyword` 本身就是一个接收新值的标准 Setter 函数。
+  2. **为什么不需要写括号？**：
+     - 如果写成 `onKeywordChange={setKeyword()}`，会在**父组件渲染时立刻执行该函数**，导致死循环或逻辑错误；
+     - 不写括号 `onKeywordChange={setKeyword}` 是传递**函数的引用（Function Reference）**；
+     - 它与箭头函数 `onKeywordChange={(val) => setKeyword(val)}` 完全等价，直接传引用更简洁。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 这完全等价于 **Java 8 的“方法引用”（Method Reference）**：
+    ```java
+    // 显式 Lambda 表达式：
+    component.setOnKeywordChange(val -> this.setKeyword(val));
+
+    // 方法引用（简写）：
+    component.setOnKeywordChange(this::setKeyword);
+    ```
+  - JavaScript 中函数是一等公民，函数名本身就是指针引用，直接作为参数传递。
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-RC-08: 为什么在 Props 接口中定义了属性，组件内依然报 TS2304: Cannot find name？
+- **提问背景**：在 `interface Props` 里添加了字段或回调（如 `onDelete`），并在 JSX 中直接调用，但 TypeScript 报找不到该名称。
+- **核心解答 (Answer)**：
+  1. **接口声明 ≠ 变量声明**：在 `interface UserCardProps { onDelete: ... }` 中声明只相当于定义了图纸契约，它不会凭空在函数内部创建同名局部变量。
+  2. **对象解构赋值漏写**：
+     - 函数组件接收的是一个统一的 `props` 对象：`function UserCard(props: UserCardProps)`；
+     - 现代 React 习惯使用 ES6 对象解构：`({ user, onDelete }) => { ... }`；
+     - 如果解构列表中只写了 `({ user })`，相当于只把 `props.user` 提取为了局部变量，而 `onDelete` 并没有被解构出来，因此直接访问 `onDelete` 会报变量未定义。
+  3. **修复方案**：在组件入参解构的花括号中补齐该属性名：`({ user, onDelete }) =>`。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 类似 Java 方法接收一个入参 `public void render(Props props)`；
+  - 你在方法体里直接写 `onDelete()` 肯定找不到符号（Cannot find symbol），你必须显式调用 `props.getOnDelete()` 或者声明局部变量 `var onDelete = props.getOnDelete()`。
+- **正反代码对照**：
+  ```tsx
+  // ❌ 错误示范：入参只解构了 user，漏掉了 onDelete
+  export const UserCard: React.FC<UserCardProps> = ({ user }) => {
+    return <button onClick={() => onDelete(user.id)}>删除</button>; // 报错 TS2304!
+  };
+
+  // ✅ 正确示范：在形参解构中补齐 onDelete
+  export const UserCard: React.FC<UserCardProps> = ({ user, onDelete }) => {
+    return <button onClick={() => onDelete(user.id)}>删除</button>; // 正常访问
+  };
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+
+
+
 

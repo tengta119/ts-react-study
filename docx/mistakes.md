@@ -124,5 +124,36 @@
 
 ---
 
+### [2026-09-17] Props 接口声明了属性但组件形参解构漏写导致 TS2304
+- **错误现象**：
+  ```tsx
+  // 接口中声明了 onDelete
+  export interface UserCardProps {
+    user: ApiUser;
+    onDelete: (id: number) => void;
+  }
+  // 形参解构中只解构了 user，漏掉了 onDelete
+  export const UserCard: React.FC<UserCardProps> = ({ user }) => {
+    return <button onClick={() => onDelete(user.id)}>删除</button>; // 报错 TS2304!
+  };
+  ```
+  TypeScript 报错：`TS2304: Cannot find name 'onDelete'`。
+- **Java 思维惯性**：
+  在 Java 中如果一个方法的入参是一个对象（如 `public void render(Props props)`），开发者下意识以为只要接口或类定义了字段，方法内部就可以直接使用，混淆了“类型属性定义”与“当前函数作用域内的局部变量”。
+- **底层根因**：
+  组件入参的 `{ user }` 是 ES6 的对象解构赋值（Destructuring Assignment）。它并不是泛化的参数接收，而是从传入的 `props` 对象中只提取 `user` 并赋值给同名局部变量。如果花括号里没写 `onDelete`，当前函数体内就根本不存在名为 `onDelete` 的局部变量。
+- **正确做法**：
+  在函数形参解构中显式补齐所有要使用的属性：
+  ```tsx
+  export const UserCard: React.FC<UserCardProps> = ({ user, onDelete }) => {
+    return <button onClick={() => onDelete(user.id)}>删除</button>;
+  };
+  ```
+- **避坑口诀**：
+  **“Props 契约是图纸，形参解构是施工；花括号里漏写名，变量未定报 TS2304。”**
+
+---
+
+
 
 
