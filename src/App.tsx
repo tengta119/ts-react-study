@@ -4,8 +4,9 @@ import { TodoList } from './exercises/TASK-002-todo/TodoList';
 import { UserForm } from './exercises/TASK-003-form/UserForm';
 import { UserListApi } from './exercises/TASK-004-api/UserListApi';
 import { UserManager } from './exercises/TASK-005-refactor-hook/UserManager';
+import { RouterApp } from './exercises/TASK-006-router/RouterApp';
 
-type TaskId = 'overview' | 'counter' | 'todo' | 'form' | 'api' | 'manager';
+type TaskId = 'overview' | 'counter' | 'todo' | 'form' | 'api' | 'manager' | 'router';
 
 interface TaskMeta {
   id: TaskId;
@@ -17,7 +18,7 @@ interface TaskMeta {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TaskId>('manager');
+  const [activeTab, setActiveTab] = useState<TaskId>('router');
 
   const tasks: TaskMeta[] = [
     {
@@ -59,6 +60,14 @@ export function App() {
       component: <UserManager />,
       description: '拆分 Smart 容器与 Dumb 展示组件，将异步数据逻辑封装为自定义 Hook。',
       filePath: 'src/exercises/TASK-005-refactor-hook/UserManager.tsx',
+    },
+    {
+      id: 'router',
+      name: 'TASK-006 前端单页路由',
+      badge: 'React Router & 动态传参',
+      component: <RouterApp />,
+      description: '掌握 SPA 单页路由原理、Routes/Route 规则分发、useParams 动态参数与 NavLink 状态高亮。',
+      filePath: 'src/exercises/TASK-006-router/RouterApp.tsx',
     },
     {
       id: 'overview',

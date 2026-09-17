@@ -1,6 +1,6 @@
 # 学习进度与知识看板 (learning.md)
 
-> 当前状态：**阶段 6 圆满通关 ✅ ｜ 推荐开启阶段 7（React Router 前端路由）（2026-09-17）**
+> 当前状态：**阶段 7 圆满通关 ✅ ｜ 推荐开启终极阶段 8（Spring Boot + React 联调实战）（2026-09-17）**
 > 核心策略：**先理解 → 自己写 → 教练 Review → 纠错修改 → 总结归纳**
 
 ---
@@ -14,26 +14,25 @@
 | [`TASK-003`](./tasks/TASK-003-form.md) | 受控表单与多字段联动 | ✅ 已通关 | `src/exercises/TASK-003-form/UserForm.tsx` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-004`](./tasks/TASK-004-api.md) | 对接后端 API 与副作用处理 | ✅ 已通关 | `src/exercises/TASK-004-api/UserListApi.tsx` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-005`](./tasks/TASK-005-refactor-hook.md) | 组件拆分、父子通信与自定义 Hook | ✅ 已通关 | `src/exercises/TASK-005-refactor-hook/` | 2026-09-17 · 验收通过，已通关归档 |
+| [`TASK-006`](./tasks/TASK-006-router.md) | React Router 单页路由与动态传参 | ✅ 已通关 | `src/exercises/TASK-006-router/` | 2026-09-17 · 验收通过，已通关归档 |
 
-**TASK-005 总结**：
-- 深刻掌握了 Smart 容器组件（`UserManager`）与 Dumb 纯展示组件（`UserCard`, `UserSearchBar`）的单一职责架构；
-- 熟练运用“Props 向下单向流动，事件通过回调向上通知（Events Up）”的 React 通信黄金法则；
-- 掌握了方法引用语法糖与 Java 8 `Consumer<T>` 的心智对应（`onKeywordChange={setKeyword}`）；
-- 掌握了形参解构赋值 `{ user, onDelete }` 的精准作用域边界，杜绝 TS2304 报错；
-- 独立完成泛型基础设施 Hook `useFetch<T>`，并利用解构重命名（`data: users`）在领域层优雅组合出 `useUsers`；
-- 成功闭环了子组件向上传递 `onDelete(id)` 并驱动父级数据不可变过滤。
+**TASK-006 总结**：
+- 深刻掌握了现代单页应用（SPA）无刷新路由的底层机制（利用 HTML5 `pushState` 修改地址栏，在内存中静默挂载卸载组件，彻底告别传统多页跳转白屏）；
+- 熟练运用 `<BrowserRouter>`、`<Routes>`、`<Route>` 构建集中式路由表，理解了其与 Spring MVC `HandlerMapping` 的对应关系；
+- 洞悉了动态路由 `:id` 底层正则命名捕获组的解析机制，彻底融会贯通了与 Spring Boot `@PathVariable` 的底层一致性；
+- 熟练运用 `useParams<{ id: string }>()` 安全提取路径参数、`useNavigate()` 编程式导航回退，以及 `<NavLink>` 动态 `isActive` 菜单高亮。
 
-**下一步推荐目标**：开启 **阶段 7：React Router 前端路由与多页面导航**（构建真正的单页多页面 SPA 应用，掌握路由切换、动态参数与导航栏激活）。
+**下一步推荐目标**：开启 **阶段 8：Spring Boot + React 工业级全栈项目实战**（打通 JWT Token 认证拦截器、统一 Axios 客户端、全局状态、跨域生产部署与前后端工程化联调）。
 
 ---
 
 ## 🎯 当前学习阶段
 
-- **当前路线**：从组件解耦架构向前端单页路由（SPA Routing）进阶
+- **当前路线**：从前端局部技术（State/Effect/Component/Router）走向全栈工程化闭环
 - **主攻方向**：
-  1. React Router 核心机制（`BrowserRouter`, `Routes`, `Route`, `Link`, `NavLink`）
-  2. 动态路由传参（`useParams` / `useNavigate`）
-  3. 嵌套路由与全局布局（Layout & Outlet）
+  1. Spring Boot 安全认证（JWT Token / 登录拦截 / 前端 Auth 守卫）
+  2. 统一网络请求封装（Axios 拦截器 / Request & Response Interceptors）
+  3. 前后端分离工程化全栈项目独立构建
 
 ---
 
@@ -47,8 +46,8 @@
 | **阶段 4** | **列表、Key 与表单受控组件** | 掌握 `map` 渲染、Key 的底层机制、多表单受控输入 | ✅ 阶段通关（TASK-002, TASK-003 通关） |
 | **阶段 5** | **副作用与生命周期 (useEffect)** | 掌握数据请求、定时器清理、依赖项数组机制 | ✅ 阶段通关（TASK-004 通关） |
 | **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | ✅ 阶段通关（TASK-005 通关） |
-| **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | 🟡 下一推荐阶段 |
-| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | ⚪ 未开始 |
+| **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | ✅ 阶段通关（TASK-006 通关） |
+| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | 🟡 下一终极推荐阶段 |
 
 ---
 
@@ -81,6 +80,10 @@
 - [x] **自定义 Hook 抽象范式**：封装 `useFetch<T>` 泛型基础设施与 `useUsers` 业务领域服务
 - [x] **解构别名与适配器模式**：`{ data: users, setData: setUsers }` 实现强类型领域映射
 - [x] **子传父删除联动**：`onDelete(user.id)` 回调通知父组件触发不可变移出
+- [x] **SPA 客户端单页路由机制**：基于 HTML5 History API 实现零白屏多页面调度
+- [x] **集中式路由分发体系**：`<BrowserRouter>`, `<Routes>`, `<Route>` 映射规则
+- [x] **动态路由与模式匹配**：`:id` 正则捕获提取，与 Spring `@PathVariable` 深度对齐
+- [x] **路由状态感知与编程式导航**：`<NavLink>` 激活高亮与 `useNavigate()` 流程跳转
 
 ---
 
@@ -90,11 +93,11 @@
   - [ ] `interface` 属性定义（可选 `?`、只读 `readonly`）
   - [ ] `interface` 与 `type` 的区别与取舍
   - [ ] 联合类型 (`|`) 与 字面量类型
-- [ ] **阶段 7 核心知识点（待开启）**：
-  - [ ] 前端路由 SPA 机制：为什么切换页面不刷新整页？
-  - [ ] React Router 核心组件：`BrowserRouter`, `Routes`, `Route`, `Link`, `NavLink`
-  - [ ] 动态路由与 Hooks：`useParams` 提取 `:id`、`useNavigate` 编程式跳转
-  - [ ] 嵌套路由与布局卡槽：`Layout` + `<Outlet />`
+- [ ] **阶段 8 核心技能点（待开启）**：
+  - [ ] 前端 Axios 拦截器与 Token 传递（`Authorization: Bearer <token>`）
+  - [ ] 前后端分页参数与分页响应 DTO 对齐（PageResult<T>）
+  - [ ] 路由守卫（Private / Protected Route）：未登录重定向至登录页
+  - [ ] 全栈项目生产部署：跨域代理与 Nginx 静态托管
 
 ---
 
@@ -112,3 +115,5 @@
 8. 什么是 Props 和事件回调？父子组件通信的底层机制是什么？（详见 `docx/questions/react-core.md` Q-RC-06）
 9. 为什么可以直接写 `onKeywordChange={setKeyword}`？它实际是一个函数吗？（详见 `docx/questions/react-core.md` Q-RC-07）
 10. 为什么在 Props 接口中定义了属性，组件内依然报 TS2304？（详见 `docx/questions/react-core.md` Q-RC-08）
+11. `NavLink`、`Routes` 与 `BrowserRouter` 是如何协同运转的？（详见 `docx/questions/api-and-router.md` Q-AR-03）
+12. 动态路由 `:id` 与实际路径 `/users/3` 是如何对应解析的？底层匹配机制是什么？（详见 `docx/questions/api-and-router.md` Q-AR-04）
