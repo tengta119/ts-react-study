@@ -38,15 +38,20 @@ export const TodoList: React.FC = () => {
   const handleAddTodo = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
-    // TODO: 请将占位代码完善为不可变追加（提示：[...todos, newTodo]）
-    setTodos((prev) => prev);
+    const newTodo: TodoItem = {
+      id: crypto.randomUUID(),
+      text: inputText.trim(),
+      completed: false,
+      createdAt: Date.now()
+    }
+    setTodos((prev) => [... prev, newTodo]);
     setInputText('');
   };
 
   // TODO: 实现切换勾选状态
   const handleToggleTodo = (id: string) => {
     // TODO: 使用 todos.map(...) 产生新数组，切勿原地修改！
-    setTodos((prev) => prev.map((t) => (t.id === id ? t : t)));
+    setTodos((prev) => prev.map((t) => (t.id === id ? {... t, completed: !t.completed} : t)));
   };
 
   // TODO: 实现删除待办

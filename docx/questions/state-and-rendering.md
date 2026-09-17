@@ -68,4 +68,93 @@
   - **React 类似于 Java 函数式编程 / Record 不可变流水线 / Event Sourcing**：所有数据都是不可变的（`final`），想要新状态必须显式创建新实例并提交 Event，促使整条流水线重新计算。
 - **掌握标记**：[ ] 待主动回忆
 
+---
+
+### Q-SR-06: 在 React 中如何正确为数组 State 新增数据？为什么不能直接调用 `todos.push()`？
+- **提问背景**：Java 开发者习惯于 `list.add(item)`，在 React 中使用 `todos.push(newTodo); setTodos(todos);` 却发现页面毫无反应。
+- **核心解答 (Answer)**：
+  1. **不能用 `push` 的根因**：`array.push()` 是原地突变操作（In-place Mutation），它直接修改当前数组内容，**数组在堆中的内存指针地址毫无变化**。React 依靠 `Object.is(oldArray, newArray)` 判定状态更新，由于指针完全相同，React 判定“无变化”从而跳过重渲染。
+  2. **正确语法（扩展运算符 Spread Operator）**：使用 `[...todos, newTodo]` 创建一个包含所有旧元素与新元素的**全新数组实例**。
+  3. **函数式更新最佳实践**：
+     ```tsx
+     const newTodo: TodoItem = {
+       id: crypto.randomUUID(), // 或 Date.now().toString()
+       text: inputText.trim(),
+       completed: false,
+       createdAt: Date.now(),
+     };
+     setTodos((prev) => [...prev, newTodo]);
+     ```
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 相当于 Java 中的不可变集合模式（如 `List.copyOf` 或 Guava 的 `ImmutableList`）。
+  - 在不可变集合中，你不能调用 `list.add()`，想要添加元素，必须新建一个包含旧数据和新数据的 `new ImmutableList<>(oldList, newItem)`。
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-SR-07: 在 React 中如何使用 `todos.map(...)` 产生新数组来修改单项状态？
+- **提问背景**：Java 开发者习惯于通过 `list.get(i).setCompleted(...)` 就地修改属性，在 React 不可变原则下不知道如何用 `map` 针对性更新。
+- **核心解答 (Answer)**：
+  1. **`Array.prototype.map` 的本质**：它是一个纯函数变换，遍历数组的每一项并根据返回值构造一个**全新的数组**，原数组完全不受影响。
+  2. **三元表达式 + 对象展开（浅拷贝）范式**：
+     - 如果遍历到的项匹配目标 ID（`item.id === id`）：返回一个通过展开运算符创建的**新对象** `{ ...item, completed: !item.completed }`，覆盖要修改的属性；
+     - 如果不匹配：直接原样返回未修改的 `item`；
+  3. **标准写法**：
+     ```tsx
+     setTodos(prev =>
+       prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
+     );
+     ```
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 与 **Java 8 Stream `.map()`** 100% 对应：
+    ```java
+    List<TodoItem> newTodos = todos.stream()
+        .map(t -> t.getId().equals(id) ? t.withCompleted(!t.isCompleted()) : t)
+        .toList();
+    ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-SR-08: React/TS 中 `{ ...t, completed: !t.completed }` 里的三个点 `...` 是什么意思？
+- **提问背景**：Java 中没有对象展开语法，初学者对 `{ ...t, prop: value }` 的工作机制感到陌生。
+- **核心解答 (Answer)**：
+  1. **语法名称**：**对象展开运算符（Object Spread Operator）**。
+  2. **底层行为（浅拷贝平铺）**：它会把对象 `t` 中所有的可枚举键值对（Key-Value）原样“拆包平铺”倒进外层新建的大括号 `{}` 新对象中。
+  3. **属性覆写规则（后面的覆盖前面的）**：
+     JavaScript 对象字面量按从左到右解析。先通过 `...t` 复制旧对象的所有属性，后面的 `completed: !t.completed` 会覆盖掉前面解开的同名 `completed` 属性。
+  4. **不可变结果**：原对象 `t` 内存数据完全没变，产出的也是一个**全新的对象内存地址引用**。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 相当于 Lombok 的 `@Builder(toBuilder = true)`：
+    `t.toBuilder().completed(!t.isCompleted()).build();`
+  - 也相当于 Java 原生反射拷贝 `BeanUtils.copyProperties` 后单独修改字段，但展开运算符是原生语法，性能极高且无反射开销。
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-SR-09: 在 React 中如何使用 `todos.filter(...)` 进行不可变删除？为什么不能用 `splice`？
+- **提问背景**：Java 习惯 `list.remove(index)`，在前端初学时容易写出 `todos.splice(index, 1)`，导致虽然数据删了但页面不刷新。
+- **核心解答 (Answer)**：
+  1. **不能用 `splice` 的根因**：`splice` 是破坏性就地突变操作（In-place Mutation）。它直接修改原数组内存中的内容，数组本身的堆指针未变。React 的浅比较 `Object.is(old, new)` 判定相等，从而直接放弃触发重渲染。
+  2. **`filter` 的工作机制**：`array.filter(predicate)` 接收一个布尔断言函数。返回 `true` 的元素被保留，返回 `false` 的元素被剔除，最终产出一个**全新的数组引用**，原数组完全不受破坏。
+  3. **删除指定项的标准模式**：
+     “删除 ID 为 `targetId` 的项”，反向等价于“只保留 ID 不等于 `targetId` 的项”：
+     ```tsx
+     const handleDeleteTodo = (id: string) => {
+       setTodos(prev => prev.filter(t => t.id !== id));
+     };
+     ```
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 与 **Java 8 Stream `.filter(predicate)`** 100% 对应：
+    ```java
+    List<TodoItem> newTodos = todos.stream()
+        .filter(t -> !t.getId().equals(id))
+        .toList();
+    ```
+- **掌握标记**：[ ] 待主动回忆
+
+
+
+
+
 
