@@ -97,4 +97,32 @@
 
 ---
 
+### [2026-09-17] 误将异步流方法 `res.text()` 当作同步方法导致 `[object Promise]`
+- **错误现象**：
+  ```typescript
+  if (!res.ok) {
+    // 错误示范：未加 await 直接将方法调用塞入模板字符串
+    throw new Error(`HTTP 错误: 状态码 ${res.status}, 错误信息 ${res.text()}`);
+  }
+  ```
+  界面报错展示为：`HTTP 错误: 状态码 500, 错误信息 [object Promise]`，后端的具体错误消息完全丢失。
+- **Java 思维惯性**：
+  在 Java 后端开发中（如 OkHttp 或 Spring RestTemplate），调用响应体的提取方法（如 `response.body().string()`）是**同步阻塞**的，直接返回 `String`。Java 开发者下意识认为 `res.text()` 也是普通同步方法，直接插值使用。
+- **底层根因**：
+  浏览器的 Fetch API 响应体底层是**异步可读流（ReadableStream）**。
+  `res.text()`、`res.json()`、`res.blob()` 全部都是**异步方法，返回值是 `Promise<T>`**。如果未加 `await`，拿到的仅仅是一个未决议的 Promise 对象。当 Promise 对象在模板字符串 `${...}` 中被隐式转为字符串时，会调用 `Promise.prototype.toString()`，得到固定的 `"[object Promise]"`。
+- **正确做法**：
+  必须使用 `await` 异步等待流读取完成，再抛出或使用其内容：
+  ```typescript
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`HTTP 错误: 状态码 ${res.status}, 错误信息 ${errorText}`);
+  }
+  ```
+- **避坑口诀**：
+  **“Fetch 响应皆为流，读流必加 await 头；莫学 Java 同步取，否则吐出 Promise 愁。”**
+
+---
+
+
 

@@ -16,7 +16,7 @@ interface TaskMeta {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TaskId>('form');
+  const [activeTab, setActiveTab] = useState<TaskId>('api');
 
   const tasks: TaskMeta[] = [
     {

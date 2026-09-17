@@ -63,3 +63,35 @@
   ```
 - **掌握标记**：[ ] 待主动回忆
 
+---
+
+### Q-RC-05: 在 JSX 中如何优雅处理“空数据态 (Empty State)”？为什么 JSX 里不能直接写 `if-else`？
+- **提问背景**：当后端返回空集合或前端搜索过滤结果为空时，初学者不知道如何在 JSX 中优雅呈现“未找到数据”的提示，并困惑为什么不能在 `{}` 里面写 `if-else`。
+- **核心解答 (Answer)**：
+  1. **语句 (Statement) vs 表达式 (Expression)**：
+     - JSX 编译后会被转化为纯 JS 函数调用（如 `_jsx(...)`）。在 JSX 的插值花括号 `{}` 内部，**只能包含有返回值的“表达式”**；
+     - `if-else`、`for` 是控制流“语句”，它们本身没有返回值，因此绝对不能直接写在 `{}` 内部；
+     - 取而代之的是使用具有返回值的**三元运算符 (`condition ? A : B`)** 或 **逻辑与短路 (`condition && A`)**。
+  2. **空数据态的标准设计范式**：
+     - 在成功态内部，通过判断数组长度 `list.length === 0`：
+       - 若为 0，返回友好的空状态卡片/占位图；
+       - 若大于 0，返回映射渲染后的网格/列表。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 类似 Java 方法返回值：你不能把 `if (list.isEmpty()) { ... }` 作为一个参数传给另一个方法，但你可以传递三元表达式 `list.isEmpty() ? emptyView : tableView`。
+- **经典代码示范**：
+  ```tsx
+  {!loading && !error && (
+    filteredUsers.length === 0 ? (
+      <div style={{ textAlign: 'center', color: '#9ca3af' }}>
+        🔍 未找到匹配的用户
+      </div>
+    ) : (
+      <div className="grid">
+        {filteredUsers.map(u => <UserCard key={u.id} user={u} />)}
+      </div>
+    )
+  )}
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+

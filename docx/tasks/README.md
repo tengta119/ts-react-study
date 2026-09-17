@@ -13,7 +13,7 @@
 | [TASK-001](./TASK-001-counter.md) | **全功能计数器 (Counter)** | `useState`, 点击事件, 状态步长与重置 | ⭐ | ✅ 已通关（2026-09-17） |
 | [TASK-002](./TASK-002-todo.md) | **经典 Todo 清单** | 数组不可变更新 (`map/filter`), 列表 Key, 受控输入 | ⭐⭐ | ✅ 已通关（2026-09-17） |
 | [TASK-003](./TASK-003-form.md) | **受控表单与多字段联动** | 表单事件类型, 统一 State 管理, 基础校验提示 | ⭐⭐ | ✅ 已通关（2026-09-17） |
-| [`TASK-004`](./TASK-004-api.md) | **调用后端 API 联调 (对接 Spring)** | `useEffect`, 数据请求, Loading/Error 状态, DTO 类型契约 | ⭐⭐⭐ | 🟡 待开启（推荐下一目标） |
+| [`TASK-004`](./TASK-004-api.md) | **调用后端 API 联调 (对接 Spring/FastAPI)** | `useEffect`, 数据请求, Loading/Error 状态, DTO 类型契约 | ⭐⭐⭐ | ✅ 已通关（2026-09-17） |
 
 ---
 

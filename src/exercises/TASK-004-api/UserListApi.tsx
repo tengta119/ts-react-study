@@ -35,10 +35,11 @@ export const UserListApi: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      // 演示用公开测试接口，日后可替换为你的 Spring Boot 后端接口 (如 http://localhost:8080/api/users)
-      const res = await fetch('https://jsonplaceholder.typicode.com/users');
+      // 演示用公开测试接口，日后可替换为你的 Spring Boot 后端接口 (如 http://127.0.0.1:8000/api/users)
+      const res = await fetch('http://127.0.0.1:8000/api/users');
       if (!res.ok) {
-        throw new Error(`HTTP 错误: 状态码 ${res.status}`);
+        const errorText = await res.text();
+        throw new Error(`HTTP 错误: 状态码 ${res.status}, 错误信息 ${errorText}`);
       }
       const data: ApiUser[] = await res.json();
       setUsers(data);
@@ -100,24 +101,31 @@ export const UserListApi: React.FC = () => {
 
       {/* 成功态 */}
       {!loading && !error && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          {filteredUsers.map((user) => (
-            <div
-              key={user.id}
-              style={{
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                padding: '12px',
-                background: '#ffffff',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-              }}
-            >
-              <h4 style={{ margin: '0 0 4px 0', color: '#1f2937' }}>{user.name}</h4>
-              <p style={{ margin: '2px 0', fontSize: '13px', color: '#4b5563' }}>📧 {user.email}</p>
-              <p style={{ margin: '2px 0', fontSize: '13px', color: '#4b5563' }}>🏢 {user.company?.name || '个人开发者'}</p>
+        filteredUsers.length === 0 ? (
+            // 1. 如果搜不到人，显示友好提示
+            <div style={{ textAlign: 'center', padding: '32px', color: '#9ca3af' }}>
+              🔍 未找到与 "{keyword}" 匹配的用户
             </div>
-          ))}
-        </div>
+        ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {filteredUsers.map((user) => (
+                  <div
+                      key={user.id}
+                      style={{
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        background: '#ffffff',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      }}
+                  >
+                    <h4 style={{ margin: '0 0 4px 0', color: '#1f2937' }}>{user.name}</h4>
+                    <p style={{ margin: '2px 0', fontSize: '13px', color: '#4b5563' }}>📧 {user.email}</p>
+                    <p style={{ margin: '2px 0', fontSize: '13px', color: '#4b5563' }}>🏢 {user.company?.name || '个人开发者'}</p>
+                  </div>
+              ))}
+            </div>
+        )
       )}
     </div>
   );
