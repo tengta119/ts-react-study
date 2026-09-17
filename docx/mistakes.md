@@ -64,3 +64,37 @@
 
 ---
 
+### [2026-09-17] 试图使用 `new` 实例化 TS 接口并与原生 `FormData` 命名冲突
+- **错误现象**：
+  ```tsx
+  // 错误示范：误用 new 实例化 TS 接口
+  setFormData(new FormData({
+    username: '',
+    email: '',
+    role: 'DEVELOPER',
+    agree: false,
+  }));
+  ```
+  TypeScript 报类型不兼容错误，且运行时意外调用了浏览器自带的原生 `window.FormData` 构造函数，导致无法正确初始化状态。
+- **Java 思维惯性**：
+  在 Java 面向对象体系中，实例化数据载体对象（POJO / DTO）必须依赖构造器（如 `new UserDTO(...)`）。Java 开发者看到顶部定义的 `interface FormData`，下意识将其视作具体的类，习惯性使用 `new` 构造实例。
+- **底层根因**：
+  1. **TS 接口编译期彻底擦除 (Type Erasure)**：`interface` 仅在开发与编译阶段提供静态契约检查，生成 JS 运行时后彻底消失。它根本不是一个 Class，在语法上绝不可被 `new`。
+  2. **浏览器原生 API 全局命名冲突**：浏览器宿主环境的全局对象上自带 `window.FormData`（专门用于封装 `multipart/form-data` 网络请求或文件上传）。写 `new FormData(...)` 会直接调用浏览器的原生类，而该构造函数不接受普通 JS 数据对象。
+- **正确做法**：
+  在 TypeScript / JavaScript 中创建纯数据实体，直接使用**对象字面量（Object Literal）`{}`**，依靠结构化子类型（鸭子类型）自动满足接口约束；日常开发中建议契约命名为 `UserFormData` 或 `RegisterFormDto` 避免与浏览器全局 API 重名：
+  ```tsx
+  // ✅ 正确做法：直接使用对象字面量
+  setFormData({
+    username: '',
+    email: '',
+    role: 'DEVELOPER',
+    agree: false,
+  });
+  ```
+- **避坑口诀**：
+  **“TS 接口擦除不能 new，对象字面量 `{}` 显神威；DTO 莫起全局名，避免撞车 FormData。”**
+
+---
+
+

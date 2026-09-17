@@ -37,3 +37,29 @@
 - **Java / 后端对照视角 (Java Mapping)**：
   - 类似 Java 中的 `equals()` 和 `hashCode()`。如果把对象在集合中的位置当作它的唯一身份标识，一旦集合发生重排，根据位置查找就会发生灾难性的识别错误。
 - **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-RC-04: React 事件类型 `React.ChangeEvent<HTMLInputElement | HTMLSelectElement>` 是什么意思？
+- **提问背景**：在编写通用表单处理函数 `handleChange` 时，初学者对入参类型注解 `e: React.ChangeEvent<...>` 感到困惑。
+- **核心解答 (Answer)**：
+  1. **`React.ChangeEvent` (React 合成事件)**：React 为了抹平不同浏览器底层 DOM 事件的兼容性差异，在原生浏览器事件上包装了一层 `SyntheticEvent`。`ChangeEvent` 专门代表输入控件内容发生变动的事件。
+  2. **泛型参数 `<T>` (事件源 DOM 节点约束)**：泛型参数指定了触发该事件的元素类型（即 `e.target` 是什么）。通过传入具体的 HTML 元素接口，TypeScript 能在代码中精准推导并自动补全 `e.target` 上的属性（如 `name`、`value` 等）。
+  3. **联合类型 `|` (Union Type)**：因为同一个 `handleChange` 函数既绑定到了 `<input>` 输入框，又绑定到了 `<select>` 下拉菜单。为了让 TS 编译器允许这个函数同时作为两者的事件监听器，必须用联合类型表示“事件源可以是 Input 也可以是 Select”。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - `ChangeEvent<T>` 类似 Spring 的泛型事件对象 `PayloadApplicationEvent<T>` 或 `EventListener<T extends Element>`。
+  - `HTMLInputElement | HTMLSelectElement` 类似 Java 泛型中的公共父类抽象或联合限制。
+  - 代码中的 `(e.target as HTMLInputElement).checked` 就如同 Java 中的强制类型转换 `((HTMLInputElement) target).isChecked()`。
+- **极简代码拆解**：
+  ```ts
+  const handleChange = (
+    // e: 这是一个受 React 统一管理的输入变动事件
+    // 泛型表示：触发该事件的 DOM 元素要么是 <input>，要么是 <select>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target;
+    // ...
+  };
+  ```
+- **掌握标记**：[ ] 待主动回忆
+

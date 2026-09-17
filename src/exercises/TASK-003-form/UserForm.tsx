@@ -45,14 +45,43 @@ export const UserForm: React.FC = () => {
   // TODO: 表单提交处理
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // 基础骨架示范：完善用户名与邮箱校验
-    if (!formData.username.trim()) {
-      setErrors({ username: '用户名不能为空' });
+
+    const newErrors: { username?: string; email?: string } = {};
+
+    // 1. 校验用户名长度：3 ~ 16 字符
+    const trimmedName = formData.username.trim();
+    if (trimmedName.length < 3 || trimmedName.length > 16) {
+      newErrors.username = '用户名长度需在 3 到 16 个字符之间';
+    }
+
+    // 2. 校验邮箱：简单的正则匹配
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      newErrors.email = '请输入合法的电子邮箱地址';
+    }
+
+    // 3. 判断是否有错误
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
+
+    // 4. 校验全部通过：清空错误并记录提交结果
     setErrors({});
     setSubmittedData(formData);
   };
+
+  function handleReset() {
+    setFormData({
+      username: '',
+      email: '',
+      role: 'DEVELOPER',
+      agree: false,
+    });
+
+    setErrors({});
+    setSubmittedData(null);
+  }
 
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '24px' }}>
@@ -123,6 +152,23 @@ export const UserForm: React.FC = () => {
         >
           提交表单
         </button>
+
+        <button
+            type="button"
+            onClick={handleReset}
+            style={{
+              padding: '10px',
+              background: '#e2e8f0',
+              color: '#334155',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              marginTop: '8px'
+            }}
+        >
+          重置表单
+        </button>
+
       </form>
 
       {submittedData && (

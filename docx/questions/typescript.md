@@ -69,3 +69,58 @@
   - 也类似 **C++ 与 C 语言**：学 C++ 绝不可能跳过 C 的内存布局、指针与基础运算。不理解 JavaScript 运行时的底层本质，TypeScript 就只是一具空有类型声明的空壳。
 - **掌握标记**：[ ] 待主动回忆
 
+---
+
+### Q-TS-05: 为什么不能 `new FormData({...})`？TS 接口与 JS 原生对象构造函数有什么区别？
+- **提问背景**：Java 开发者习惯通过 `new MyDTO(...)` 创建数据对象，在重置表单时顺手写了 `setFormData(new FormData({ ... }))`，导致编译或运行时异常。
+- **核心解答 (Answer)**：
+  1. **TS 接口在运行时被彻底擦除**：`interface FormData { ... }` 只是 TypeScript 编译期的静态类型约束，在生成的 JavaScript 运行时中根本不存在这个“类”，因此绝对不能用 `new` 去实例化它。
+  2. **名字冲突与浏览器原生 API**：浏览器全局作用域中自带一个名为 `window.FormData` 的原生构造函数，它是用来构建 `multipart/form-data` 网络请求体（常用于文件上传）的。如果写 `new FormData(...)`，实际上会调用浏览器的原生 API，而不是你的业务 DTO。
+  3. **TS/JS 中创建纯数据对象的方式**：直接使用**对象字面量（Object Literal）** `{ key: value }`。只要字面量的属性满足接口的结构契约（鸭子类型），它就是合法的 `FormData`。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 在 Java 中创建 POJO 必须依赖具体的 Class 构造器（如 `new UserDTO()`）。
+  - 在 TypeScript 中，`interface` 类似 Java 的接口或 Record 契约，而 JS 对象字面量 `{ ... }` 类似隐式实现了该接口的匿名不可变数据结构。在 TS 中直接写 `{ key: value }`，零额外构造开销。
+- **正反代码对照**：
+  ```ts
+  // ❌ 错误示范：误将 TS 接口当成 Java 类 new，实际调用了浏览器自带的原生网络表单类
+  setFormData(new FormData({ username: '', email: '', role: 'DEVELOPER', agree: false }));
+
+  // ✅ 正确示范：使用对象字面量直接赋值
+  setFormData({
+    username: '',
+    email: '',
+    role: 'DEVELOPER',
+    agree: false,
+  });
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-TS-06: 对象字面量中的 `[name]: value` 是什么意思？与 `name: value` 有何本质区别？
+- **提问背景**：在编写通用表单处理函数 `handleChange` 时，初学者对状态更新中的中括号属性名 `[name]` 感到困惑。
+- **核心解答 (Answer)**：
+  1. **计算属性名 (Computed Property Names)**：这是 ES6 引入的语法。在对象字面量 `{}` 中，使用中括号包裹变量或表达式 `[expression]: value`，JS 引擎会先执行括号内的表达式，并将其计算结果作为对象的属性 Key。
+  2. **静态属性名 vs 动态计算名**：
+     - 如果写 `{ name: value }`：属性名是固定的字符串 `"name"`，不管用户在哪个输入框打字，更新的永远是对象的 `name` 属性。
+     - 如果写 `{ [name]: value }`：`name` 是一个变量（取自 `e.target.name`）。当用户在用户名输入框打字时，`name` 的值是 `"username"`，等同于 `{ username: value }`；当在邮箱输入框打字时，等同于 `{ email: value }`。
+  3. **架构价值**：通过一个通用函数直接完成所有字段的状态联动，彻底避免为每个输入框重复编写独立的更新函数或庞大的 `switch-case`。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - `{ name: value }` 类似 Java POJO 固定的 `dto.setName(value)`。
+  - `{ [name]: value }` 类似 Java 的 `map.put(keyVariable, value)`，或者通过反射根据字段名动态设值 `clazz.getDeclaredField(fieldName).set(dto, value)`。
+- **极简对比示范**：
+  ```ts
+  const field = "username";
+
+  // 静态属性：对象的 key 就是 "field" 字符串本身
+  const objA = { field: "tom" }; 
+  // 结果：{ field: "tom" } ❌ 并非我们想要的
+
+  // 动态计算属性名：计算变量 field 的值作为 key
+  const objB = { [field]: "tom" }; 
+  // 结果：{ username: "tom" } ✅ 动态匹配
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+
+
