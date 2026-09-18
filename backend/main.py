@@ -56,6 +56,20 @@ class UserDTO(BaseModel):
         description="所在公司或部门信息"
     )
 
+class PageResult(BaseModel):
+    """分页响应包裹 DTO (对齐 Spring Data 的 Page<T> 常用字段)
+
+    对应 Java:
+        {"list": [...], "total": 25, "page": 1, "size": 5, "totalPages": 5}
+    前端 TS 侧契约见 src/exercises/TASK-007-http-layer/types.ts
+    """
+    list: List[UserDTO] = Field(..., description="当前页数据切片", example=[])
+    total: int = Field(..., description="符合条件的总记录数", example=25)
+    page: int = Field(..., description="当前页码 (从 1 开始)", example=1)
+    size: int = Field(..., description="每页条数", example=5)
+    totalPages: int = Field(..., description="总页数 (由后端计算，避免前端重复推导)", example=5)
+
+
 class CreateUserCommand(BaseModel):
     """新增用户请求入参 (类似 Spring @RequestBody CreateUserCommand cmd)"""
     name: str
@@ -108,11 +122,155 @@ INITIAL_USERS: List[UserDTO] = [
         phone="135-5555-6666",
         company=CompanyDTO(name="用户体验创新实验室")
     ),
+    UserDTO(
+        id=6,
+        name="周洋 (消息中间件工程师)",
+        username="zhouyang_mq",
+        email="zhouyang@mq.io",
+        phone="134-6666-7777",
+        company=CompanyDTO(name="消息中间件平台组")
+    ),
+    UserDTO(
+        id=7,
+        name="吴倩 (数据仓库建模师)",
+        username="wuqian_dw",
+        email="wuqian@data.com",
+        phone="133-7777-8888",
+        company=CompanyDTO(name="数据中台建设部")
+    ),
+    UserDTO(
+        id=8,
+        name="郑凯 (高并发交易系统研发)",
+        username="zhengkai_trade",
+        email="zhengkai@trade.cn",
+        phone="132-8888-9999",
+        company=CompanyDTO(name="证券交易核心系统组")
+    ),
+    UserDTO(
+        id=9,
+        name="张敏 (前端工程化负责人)",
+        username="zhangmin_fe",
+        email="zhangmin@frontend.dev",
+        phone="131-9999-0000",
+        company=CompanyDTO(name="前端基础设施建设组")
+    ),
+    UserDTO(
+        id=10,
+        name="刘德华 (安全合规专家)",
+        username="liudehua_sec",
+        email="liudehua@sec.org",
+        phone="130-1234-5678",
+        company=CompanyDTO(name="信息安全与合规部")
+    ),
+    UserDTO(
+        id=11,
+        name="陈曦 (MySQL 内核优化)",
+        username="chenxi_dba",
+        email="chenxi@mysql.io",
+        phone="189-1111-0001",
+        company=CompanyDTO(name="数据库内核研发组")
+    ),
+    UserDTO(
+        id=12,
+        name="黄磊 (Redis 缓存架构师)",
+        username="huanglei_cache",
+        email="huanglei@redis.cn",
+        phone="188-2222-0002",
+        company=CompanyDTO(name="高可用缓存平台组")
+    ),
+    UserDTO(
+        id=13,
+        name="张一鸣 (算法工程师)",
+        username="zhangyiming_algo",
+        email="zhangyiming@ai.io",
+        phone="187-3333-0003",
+        company=CompanyDTO(name="智能推荐算法组")
+    ),
+    UserDTO(
+        id=14,
+        name="林芳 (产品经理)",
+        username="linfang_pm",
+        email="linfang@product.com",
+        phone="186-4444-0004",
+        company=CompanyDTO(name="企业产品规划部")
+    ),
+    UserDTO(
+        id=15,
+        name="徐斌 (微服务治理专家)",
+        username="xubin_gov",
+        email="xubin@gov.net",
+        phone="185-5555-0005",
+        company=CompanyDTO(name="服务治理与注册中心组")
+    ),
+    UserDTO(
+        id=16,
+        name="何静 (测试开发工程师)",
+        username="hejing_qa",
+        email="hejing@qa.dev",
+        phone="184-6666-0006",
+        company=CompanyDTO(name="自动化测试平台组")
+    ),
+    UserDTO(
+        id=17,
+        name="马超 (Kubernetes 运维)",
+        username="machao_k8s",
+        email="machao@k8s.cloud",
+        phone="183-7777-0007",
+        company=CompanyDTO(name="云平台运维保障组")
+    ),
+    UserDTO(
+        id=18,
+        name="高圆 (用户增长运营)",
+        username="gaoyuan_growth",
+        email="gaoyuan@growth.com",
+        phone="182-8888-0008",
+        company=CompanyDTO(name="用户增长运营中心")
+    ),
+    UserDTO(
+        id=19,
+        name="张涛 (支付网关研发)",
+        username="zhangtao_pay",
+        email="zhangtao@pay.cn",
+        phone="181-9999-0009",
+        company=CompanyDTO(name="支付清结算系统组")
+    ),
+    UserDTO(
+        id=20,
+        name="罗琳 (技术文档工程师)",
+        username="luolin_doc",
+        email="luolin@docs.io",
+        phone="180-1234-0010",
+        company=CompanyDTO(name="开发者体验部")
+    ),
+    UserDTO(
+        id=21,
+        name="宋佳 (大数据实时计算)",
+        username="songjia_flink",
+        email="songjia@flink.org",
+        phone="170-2345-0011",
+        company=CompanyDTO(name="实时计算平台组")
+    ),
+    UserDTO(
+        id=22,
+        name="邓超 (物联网平台研发)",
+        username="dengchao_iot",
+        email="dengchao@iot.dev",
+        phone="171-3456-0012",
+        company=CompanyDTO(name="物联网终端接入组")
+    ),
+    UserDTO(
+        id=23,
+        name="张宁 (AI 平台后端)",
+        username="zhangning_ai",
+        email="zhangning@aibackend.io",
+        phone="172-4567-0013",
+        company=CompanyDTO(name="大模型应用平台组")
+    ),
 ]
 
 # 运行时内存用户列表
 db_users: List[UserDTO] = [u.model_copy() for u in INITIAL_USERS]
-next_user_id = 6
+next_user_id = 24
 
 # --------------------------------------------------------------------------
 # 4. RESTful 业务接口
@@ -150,6 +308,54 @@ async def get_users(
         ]
 
     return db_users
+
+
+@app.get("/api/users/page", response_model=PageResult, summary="分页 + 关键字模糊查询用户列表 (TASK-007 专属)")
+async def get_users_page(
+    page: int = Query(1, ge=1, description="页码，从 1 开始"),
+    size: int = Query(5, ge=1, le=50, description="每页条数"),
+    keyword: Optional[str] = Query(None, description="模糊搜索关键词 (匹配姓名/邮箱/登录名)"),
+    delay: float = Query(0.4, description="模拟网络延迟(秒)"),
+    fail: bool = Query(False, description="模拟后端 500 异常")
+):
+    """
+    【TASK-007 教学专供接口】真实后端的标准形态：
+    - 请求示例：GET http://127.0.0.1:8000/api/users/page?page=2&size=5&keyword=张
+    - 注意：本接口返回的是「包裹对象」(PageResult)，而不是裸数组！
+    - 慢速网络测试：?delay=1.2   故障测试：?fail=true
+    对应 Spring Boot 中的 Page<UserVO> 或自定义 PageResult<T>。
+    """
+    if delay > 0:
+        await asyncio.sleep(delay)
+
+    if fail:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="【模拟异常】分页查询失败，数据库连接超时！"
+        )
+
+    # 1) 先按关键字过滤出全量命中集合
+    matched = db_users
+    if keyword and keyword.strip():
+        kw = keyword.strip().lower()
+        matched = [
+            u for u in matched
+            if kw in u.name.lower() or kw in u.email.lower() or kw in u.username.lower()
+        ]
+
+    # 2) 再按页码切片（对应 SQL 的 LIMIT size OFFSET (page-1)*size）
+    total = len(matched)
+    total_pages = (total + size - 1) // size if total > 0 else 0
+    start = (page - 1) * size
+    page_slice = matched[start: start + size]
+
+    return PageResult(
+        list=page_slice,
+        total=total,
+        page=page,
+        size=size,
+        totalPages=total_pages
+    )
 
 
 @app.get("/api/users/{user_id}", response_model=UserDTO, summary="查询单个用户详情")
@@ -191,7 +397,7 @@ async def reset_database():
     global db_users, next_user_id
     db_users = [u.model_copy() for u in INITIAL_USERS]
     next_user_id = 6
-    return {"success": True, "message": "内存数据库已成功重置为 5 条初始数据"}
+    return {"success": True, "message": f"内存数据库已成功重置为 {len(INITIAL_USERS)} 条初始数据"}
 
 
 # --------------------------------------------------------------------------

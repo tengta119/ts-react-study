@@ -5,8 +5,9 @@ import { UserForm } from './exercises/TASK-003-form/UserForm';
 import { UserListApi } from './exercises/TASK-004-api/UserListApi';
 import { UserManager } from './exercises/TASK-005-refactor-hook/UserManager';
 import { RouterApp } from './exercises/TASK-006-router/RouterApp';
+import { UserPagedList } from './exercises/TASK-007-http-layer/UserPagedList';
 
-type TaskId = 'overview' | 'counter' | 'todo' | 'form' | 'api' | 'manager' | 'router';
+type TaskId = 'overview' | 'counter' | 'todo' | 'form' | 'api' | 'manager' | 'router' | 'paged';
 
 interface TaskMeta {
   id: TaskId;
@@ -18,7 +19,7 @@ interface TaskMeta {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TaskId>('router');
+  const [activeTab, setActiveTab] = useState<TaskId>('paged');
 
   const tasks: TaskMeta[] = [
     {
@@ -68,6 +69,14 @@ export function App() {
       component: <RouterApp />,
       description: '掌握 SPA 单页路由原理、Routes/Route 规则分发、useParams 动态参数与 NavLink 状态高亮。',
       filePath: 'src/exercises/TASK-006-router/RouterApp.tsx',
+    },
+    {
+      id: 'paged',
+      name: 'TASK-007 分页请求层',
+      badge: 'Axios 拦截器 & 分页',
+      component: <UserPagedList />,
+      description: '封装统一 axios 客户端与拦截器，对齐 PageResult<T> 分页契约，处理搜索联动与请求竞态。',
+      filePath: 'src/exercises/TASK-007-http-layer/',
     },
     {
       id: 'overview',

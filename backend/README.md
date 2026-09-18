@@ -1,6 +1,6 @@
-# TASK-004 专属辅助后端服务 (FastAPI)
+# 前端实战专属辅助后端服务 (FastAPI)
 
-这是一个专为 **React 前端开发者（尤其是熟悉 Java Spring Boot 的学员）** 定制的极简本地模拟后端服务。
+这是一个专为 **React 前端开发者（尤其是熟悉 Java Spring Boot 的学员）** 定制的极简本地模拟后端服务，服务于 TASK-004 ~ TASK-007（后续 TASK-008 登录鉴权也会挂在它上面）。
 
 ---
 
@@ -37,14 +37,18 @@ Windows 环境下直接双击运行 `backend/start.bat` 即可启动！
 
 | 接口 | 方法 | 功能描述 | 调试技巧 (针对前端学习) |
 | :--- | :---: | :--- | :--- |
-| `/api/users` | `GET` | 获取用户列表 | 普通请求：`fetch("http://127.0.0.1:8000/api/users")` |
+| `/api/users` | `GET` | 获取用户列表（全量裸数组） | 普通请求：`fetch("http://127.0.0.1:8000/api/users")` |
+| `/api/users/page` | `GET` | **服务端分页 + 搜索（TASK-007 主接口）** | `?page=1&size=5&keyword=张` → 返回 `PageResult{list,total,page,size,totalPages}`（23 条种子数据 = 5 页，专门用来打满分页与竞态场景） |
 | `/api/users?delay=1.5` | `GET` | 模拟慢网络 | 将延迟设为 1.5 秒，观察前端 Loading 状态与按钮禁用效果 |
 | `/api/users?fail=true` | `GET` | 模拟后端 500 异常 | 专门用于检验前端 `catch` 异常分支、错误 UI 提示与重试机制 |
 | `/api/users?keyword=架构` | `GET` | 后端模糊搜索 | 可用于测试“服务端搜索” vs “前端纯函数过滤”的体验差异 |
 | `/api/users/{id}` | `GET` | 获取单个用户详情 | 查询指定 ID 用户 |
 | `/api/users` | `POST` | 新增用户 | 结合受控表单实现新增 |
 | `/api/users/{id}` | `DELETE` | 删除用户 | 结合前端列表实现删除 |
-| `/api/reset` | `POST` | 重置数据库 | 随时恢复到初始 5 条数据 |
+| `/api/reset` | `POST` | 重置数据库 | 随时恢复到初始 23 条种子数据 |
+
+> **开发期跨域提示**：TASK-007 起推荐在 `vite.config.ts` 中配置 dev proxy，把 `/api/**` 转发到 `http://127.0.0.1:8000`。
+> 这样浏览器视角永远是同源请求，不触发 CORS 预检；生产环境的等价物就是 Nginx 的 `location /api { proxy_pass http://backend; }`。
 
 ---
 
