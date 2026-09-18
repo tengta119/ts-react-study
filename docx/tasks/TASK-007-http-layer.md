@@ -121,16 +121,23 @@ curl "http://127.0.0.1:8000/api/users/page?page=1&size=5&fail=true"   # 观察 E
 
 ## ✅ 验收标准 (DoD)
 
-- [ ] ① `httpClient.ts` 完成 axios 实例（baseURL `/api` + 超时）与请求拦截器（Token 插槽 + 日志）
-- [ ] ② 响应拦截器完成错误归一化：500/404 取后端 `detail`、超时、后端未启动三种情况都有友好中文提示
-- [ ] ③ `userApi.ts` 完成 `fetchUserPage`，签名与返回值和 `PageResult<ApiUser>` 严格一致
-- [ ] ④ `usePagedUsers` 完成分页状态机：page/size/keyword 驱动请求、黄金四态、`setPage` 边界校验、`setKeyword` 页码归 1、`reload` 重试
-- [ ] ⑤ 实现请求竞态保护（`useRef` 序号或 `AbortController`），快速连点翻页数据不错乱
-- [ ] ⑥ `Pagination.tsx` 分页控件完成，首末页按钮正确禁用、Loading 期间禁止连点
-- [ ] ⑦ `UserPagedList.tsx` 完成搜索框 + 四态渲染 + 分页联动，`key` 使用 `user.id`
-- [ ] ⑧ 通过教练 Code Review，并完成口试抽查（拦截器机制 / 竞态 / 分页边界）
+- [x] ① `httpClient.ts` 完成 axios 实例（baseURL `/api` + 超时）与请求拦截器（Token 插槽 + 日志）
+- [x] ② 响应拦截器完成错误归一化：500/404 取后端 `detail`、超时、后端未启动三种情况都有友好中文提示
+- [x] ③ `userApi.ts` 完成 `fetchUserPage`，签名与返回值和 `PageResult<ApiUser>` 严格一致
+- [x] ④ `usePagedUsers` 完成分页状态机：page/size/keyword 驱动请求、黄金四态、`setPage` 边界校验、`setKeyword` 页码归 1、`reload` 重试
+- [x] ⑤ 实现请求竞态保护（`useRef` 序号法），快速连点翻页数据不错乱（并在 `StrictMode` 双请求下验证通过）
+- [x] ⑥ `Pagination.tsx` 分页控件完成，首末页按钮正确禁用、Loading 期间禁止连点
+- [x] ⑦ `UserPagedList.tsx` 完成搜索框 + 四态渲染 + 分页联动，`key` 使用 `user.id`
+- [x] ⑧ 通过教练 Code Review，并完成口试抽查（拦截器机制 / 竞态 / 分页边界 / useEffect 时序）
 
-### 🚀 进阶挑战（选做）
+### 🎉 通关附加成果（超出 DoD）
+- [x] `loading` 初始值修正为 `true`，消除首帧「暂无用户数据」闪烁（详见 `docx/mistakes.md`）
+- [x] `TOKEN_KEY` 抽为常量（为 TASK-008 读写共用做好准备）
+- [x] 调试日志用 `import.meta.env.DEV` 包裹，生产构建不再输出请求 URL 与响应体
+- [x] `tsc -b` / `eslint` / `npm run build` 三项全绿
+
+### 🚀 进阶挑战（选做，转入 TASK-008/009 一并覆盖）
 - [ ] 删除用户 → 成功后 `reload()`，并处理"最后一页变空自动回退上一页"
 - [ ] 关键字输入加防抖（debounce 300ms），避免每敲一个字都打一次请求
 - [ ] 每页条数切换器（5 / 10 / 20），切换时页码归 1
+- [ ] 用 `AbortController` 把「丢弃结果」升级为「真正取消在途请求」

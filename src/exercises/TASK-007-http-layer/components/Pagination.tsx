@@ -23,47 +23,94 @@ export interface PaginationProps {
 }
 
 /**
- * ================== TODO ⑥【你来实现】==================
- * 要求渲染出如下结构（样式随意，功能与边界必须正确）：
- *
- *   「共 25 条 · 第 2 / 5 页」   [ ⬅︎ 上一页 ]  [ 下一页 ➡︎ ]
- *
- * 必须处理的 4 个边界（这里是最容易写出 Bug 的地方）：
- *   1. 第 1 页时"上一页"按钮必须 disabled（onClick 也不要发出无意义请求）；
- *   2. 最后一页时"下一页"按钮必须 disabled；
- *   3. 数据为空（total === 0）时显示"共 0 条"，不要让页码出现 第 1 / 0 页 这种尴尬文案；
- *   4. disabled 为 true 时两个按钮都禁用，防止 Loading 期间连点翻页。
- *
- * 提示：onClick={() => onPageChange(page - 1)} 这种"箭头函数包一层"是必须的，
- *      直接写 onClick={onPageChange(page - 1)} 会在渲染阶段就立即执行函数（经典错误）。
- * ======================================================
+ * 已实现的 4 个边界处理（保留备查）：
+ *   1. 第 1 页 → 「上一页」禁用；末页 → 「下一页」禁用；
+ *   2. total === 0 → 显示「暂无数据」，绝不渲染出「第 1 / 0 页」；
+ *   3. disabled（loading）→ 两个按钮同时禁用，防止连点产生并发请求；
+ *   4. onClick 必须用箭头函数包住自定义参数，否则会在渲染阶段立即执行。
  */
+/**
+ * 按钮样式工厂：把"可用 / 禁用"两种视觉抽成一处。
+ * 注意这里用 React.CSSProperties 作为返回类型 —— 直接返回对象字面量时，
+ * cursor 这类"字符串字面量联合类型"属性容易被推宽成 string 而报类型错。
+ */
+const pageButtonStyle = (enabled: boolean): React.CSSProperties => ({
+  padding: '6px 14px',
+  borderRadius: '6px',
+  fontSize: '13px',
+  fontWeight: 500,
+  border: `1px solid ${enabled ? '#cbd5e1' : '#e2e8f0'}`,
+  backgroundColor: enabled ? '#ffffff' : '#f1f5f9',
+  color: enabled ? '#1e293b' : '#cbd5e1',
+  cursor: enabled ? 'pointer' : 'not-allowed',
+});
+
 export const Pagination: React.FC<PaginationProps> = ({
-  page,
-  size,
-  total,
-  totalPages,
-  disabled = false,
-  // TODO ⑥：实现按钮时，请在这里补上 onPageChange 的解构
-  //         （这正是 mistakes.md 里「Props 契约是图纸，形参解构是施工」那一坑）
-}) => {
-  // ⬇︎ 下面是占位骨架，请整体替换为真实的分页 UI ⬇︎
+                                                        page,
+                                                        size,
+                                                        total,
+                                                        totalPages,
+                                                        disabled = false,
+                                                        onPageChange, // ⚠️ 这一行必须解构出来，否则按钮里调用它会报 TS2304（上次踩过的那坑）
+                                                      }) => {
+  // ────────────────────────────────────────────────────────────────
+  // 派生值：全部由 props 现算，绝不引入新的 state
+  //   （呼应你已掌握的「派生状态」原则：能算出来的东西不要存）
+  // ────────────────────────────────────────────────────────────────
+  const isFirstPage = page <= 1;
+  // totalPages === 0（无数据）时视为"已经在末页"，这样"下一页"必然禁用
+  const isLastPage = totalPages === 0 || page >= totalPages;
+
+  // 把「是否首/末页」与「是否加载中」两个维度合并成一个变量：
+  // 按钮的 disabled 与样式都只读这一个值 → 单一数据源，不会出现
+  // "看起来能点但点了没反应"或"变灰了却能点"的不一致
+  const canGoPrev = !disabled && !isFirstPage;
+  const canGoNext = !disabled && !isLastPage;
+
+  const hasData = total > 0;
+
   return (
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'space-between',
         gap: '12px',
         padding: '12px',
         borderTop: '1px dashed #cbd5e1',
-        color: '#94a3b8',
         fontSize: '13px',
+        color: '#475569',
       }}
     >
+      {/* 文案区：total === 0 时绝不能渲染出「第 1 / 0 页」 */}
       <span>
-        TODO ⑥: 分页控件待实现 —— 共 {total} 条 · 第 {page} / {totalPages} 页 · 每页 {size} 条
+           共 {total} 条 · 每页 {size} 条
+        {hasData ? ` · 第 ${page} / ${totalPages} 页` : ' · 暂无数据'}
         {disabled ? ' · 加载中…' : ''}
-      </span>
+         </span>
+
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {/* ⚠️ onClick 必须用箭头函数包一层：
+               写 onClick={onPageChange(page - 1)} 会在【渲染阶段】就立即执行，
+               并把返回值（undefined）当作事件处理器 → 页面一挂载就跳页 */}
+        <button
+          type="button"
+          disabled={!canGoPrev}
+          onClick={() => onPageChange(page - 1)}
+          style={pageButtonStyle(canGoPrev)}
+        >
+          ⬅︎ 上一页
+        </button>
+
+        <button
+          type="button"
+          disabled={!canGoNext}
+          onClick={() => onPageChange(page + 1)}
+          style={pageButtonStyle(canGoNext)}
+        >
+          下一页 ➡︎
+        </button>
+      </div>
     </div>
   );
 };

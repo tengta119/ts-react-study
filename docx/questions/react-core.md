@@ -185,6 +185,46 @@
   ```
 - **掌握标记**：[ ] 待主动回忆
 
+---
+
+### Q-RC-09: 为什么 `onClick={() => onPageChange(page + 1)}` 不能写成 `onClick={onPageChange(page + 1)}`？
+- **提问背景**：给分页按钮传回调时，觉得“箭头函数包一层”是多此一举，想直接把函数调用写进 JSX 属性。
+- **核心解答 (Answer)**：
+  - **JSX 里 `{ ... }` 是“现在就求值”，不是“待会儿再执行”**：
+    `onClick={onPageChange(page + 1)}` 会在**渲染阶段立即调用** `onPageChange`，而 `onClick` 拿到的是该函数的**返回值**（这里是 `undefined`）→ 最终变成 `onClick={undefined}` → 按钮点了没反应，而页面一渲染就自己跳页了。
+  - **更危险的副作用**：`onPageChange` 内部会 `setState`，这等于**在渲染过程中又去更新状态**，React 会抛出“Cannot update a component while rendering a different component”警告，严重时直接死循环。
+  - **正确形式只有两种**：
+    1. `onClick={() => onPageChange(page + 1)}` —— 交出一个**函数**，点击时才求值（推荐）；
+    2. `onClick={onPageChange}` —— 语法合法且不报错，但事件处理器会把**事件对象**当作第一个参数传进去，相当于 `onPageChange(MouseEvent)` → 页码变成事件对象，请求变成 `page=[object Object]`。
+  - **为什么项目里 `onClick={onPageChange}` 也没报类型错？** 因为 `onClick` 期望的是 `(event: MouseEvent) => void`，而你传的是 `(nextPage: number) => void`，**参数类型不兼容**——但这属于 `strictFunctionTypes` 的检查范围，**本项目未开启 `strict`，所以 TS 默默放过了**。（又一处“保险丝被拔掉”的实例）
+  - **通用规律（这类错误远不止 `onClick`）**：
+    | 错误 | 正确 |
+    | :--- | :--- |
+    | `setTimeout(fn(), 1000)` | `setTimeout(fn, 1000)` |
+    | `arr.map(fn())` | `arr.map(fn)` |
+    | `useEffect(fetchData(), [])` | `useEffect(() => { fetchData(); }, [])` |
+    口诀：**“括号即调用，引用才传递”**。
+  - **额外好处**：参数在点击那一刻才求值，拿到的是**当前这帧渲染快照中的 `page`**——正好与按钮上显示的页码一致（呼应 State 快照机制）。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - `button.addActionListener(this::handleClick)` ⇄ `onClick={() => onPageChange(page + 1)}`：传递的是**函数对象（行为）**，将来才执行；
+  - `button.addActionListener(handleClick())` ⇄ `onClick={onPageChange(page + 1)}`：当场执行并把返回值交出去——**在 Java 里这连编译都过不去**（`handleClick()` 返回 `void`，与 `ActionListener` 类型不符），而 JS 完全不拦，`undefined` 也是一个“合法值”；
+  - 这正是“函数是一等公民 + 编译期不校验参数兼容性”的代价：**Java 用类型系统拦住了这个错误，JS 只能靠开发者自觉**。
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // ❌ 渲染阶段立即执行，onClick 变成 undefined
+  <button onClick={onPageChange(page + 1)}>下一页</button>
+
+  // ⚠️ 合法但参数语义错：onPageChange 会收到 MouseEvent
+  <button onClick={onPageChange}>下一页</button>
+
+  // ✅ 交出函数，点击时才执行
+  <button onClick={() => onPageChange(page + 1)}>下一页</button>
+
+  // ✅ 无需传参时可以直传引用（此时传入 event 也不影响语义）
+  <button onClick={reload}>重新加载</button>
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
 
 
 

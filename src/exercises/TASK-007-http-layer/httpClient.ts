@@ -26,51 +26,92 @@ export const httpClient = axios.create({
   timeout: 8000, // 毫秒；超时后 axios 会抛出 code === 'ECONNABORTED' 的错误
 });
 
+/**
+ * 认证 token 在 localStorage 中的键名（契约单一来源）。
+ * TASK-008 登录成功后写入、拦截器读取，两处必须共用这个常量，避免拼写不一致导致“登录了仍 401”。
+ */
+export const TOKEN_KEY = 'token';
+
 // ---------------------------------------------------------------------------
-// TODO ①【请求拦截器】—— 请求出发前的统一改装车间
+// 【请求拦截器】—— 请求出发前的统一改装车间
 // 对应 Java: HandlerInterceptor#preHandle / Filter#doFilter
+// 职责：统一注入 Authorization 头（TASK-008 鉴权插槽）+ 开发期请求日志
 // ---------------------------------------------------------------------------
 httpClient.interceptors.request.use(
   (config) => {
-    // TODO(你来实现):
-    //   1. 从 localStorage 读取 token（键名自定，如 'token'）
-    //   2. 若存在，则注入到请求头：Authorization: `Bearer ${token}`
-    //      （这是 TASK-008 登录鉴权的前置铺垫，本任务即使没有 token 也要把插槽留好）
-    //   3. 可选：打印一行 `[HTTP →] ${config.method} ${config.url}` 便于观察请求链路
-    //
-    // ⚠️ 必须 return config！漏掉 return 会让整个请求卡死或抛出异常
-    return config;
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      // 用 AxiosHeaders 的官方 API 设置头（不要臆想 config.headers.setToken() 之类的方法）
+      config.headers.set('Authorization', `Bearer ${token}`);
+    }
+    if (import.meta.env.DEV) {
+      console.log(`[HTTP →] ${config.method} ${config.url}`);
+    }
+    return config; // 漏掉 return 会让请求卡死
   },
   (error) => Promise.reject(error)
 );
 
 // ---------------------------------------------------------------------------
-// TODO ②【响应拦截器】—— 响应回来后的统一处理器
+// 【响应拦截器】—— 响应回来后的统一处理器
 // 对应 Java: HandlerInterceptor#postHandle + @RestControllerAdvice 全局异常处理
+// 成功分支：只做开发期日志，绝不在这里拆 response.data（拆包职责在 userApi.ts）
+// 失败分支：把 axios 原始异常归一化为统一的中文 Error（四个分支）
 // ---------------------------------------------------------------------------
 httpClient.interceptors.response.use(
   (response) => {
-    // TODO(你来实现):
-    //   这里负责「成功响应（HTTP 2xx）」的统一处理。
-    //
-    // ⚠️ 设计决策（务必读懂，不要盲目模仿网上教程）：
-    //   网上教程常写 `return response.data` 来"顺便拆包"，
-    //   但 axios 的 TS 返回类型仍是 AxiosResponse<T>，类型与实际运行时不一致，
-    //   会导致后续 `res.data` 取到 undefined —— 这就是"类型撒谎"。
-    //   本任务约定：拦截器只做统一处理（如日志），**拆 .data 的职责放在 userApi.ts 里**，
-    //   保证「类型签名」与「运行时值」永远一致。
-    return response;
+    if (import.meta.env.DEV) {
+      console.log(
+        '[HTTP ←]',
+        response.status,
+        response.config.method,
+        response.config.url,
+        response.data
+      );
+    }
+    return response; // ⚠️ 必须返回完整 response
   },
   (error) => {
-    // TODO(你来实现): 把 axios 的原始异常"归一化"为人类可读的中文 Error。
-    //   需要覆盖的几种情况（可用提示）：
-    //     - error.response?.status === 500 / 404 → 读取后端 detail 详情
-    //       （注意：axios 已自动 JSON 解析，直接取 error.response.data.detail 即可，
-    //         不像 fetch 那样需要 await res.text()）
-    //     - error.code === 'ECONNABORTED' → 请求超时
-    //     - error.request 存在但没有 error.response → 后端进程没启动 / 网络不可达
-    //   最后必须 return Promise.reject(new Error('友好中文提示'))
-    //   （保持错误链条不断裂，让 Hook 的 catch 能读到 message）
-    return Promise.reject(error);
+    // ── 分支 0：主动取消（竞态清理 / 组件卸载）───────────────────────────────
+    // 这类"错误"是我们自己制造的预期内噪声，不能当失败弹给用户；
+    // ⚠️ 必须放在最前面判断：取消的请求同样"没有 response"，
+    //    否则会被下面的分支 3 误判成「网络不可达」。
+    if (error.code === 'ERR_CANCELED') {
+      return Promise.reject(error);
+    }
+
+    // ── 分支 1：有响应 → 请求到达了后端，但 HTTP 状态码是失败（4xx/5xx）──────
+    // 不做状态码白名单！400/401/403/405/422/500/502/503 全部走这一条。
+    if (error.response) {
+      const status: number = error.response.status;
+      const detail = error.response.data?.detail; // 后端可能是 JSON，也可能是代理的纯文本/HTML
+
+      // 后端给了非空字符串就用它，否则兜底成带状态码的通用文案
+      const message =
+        typeof detail === 'string' && detail.trim() !== ''
+          ? detail
+          : `请求失败 (HTTP ${status})`;
+
+      console.error('[HTTP ✗ 业务]', status, error.config?.method, error.config?.url, message);
+
+      // TODO(TASK-008)：status === 401 时在此统一"清理 token → 跳转登录页"
+      return Promise.reject(new Error(message));
+    }
+
+    // ── 分支 2：无响应 + 超时 ───────────────────────────────────────────────
+    // axios 源码里超时有两个错误码：默认 ECONNABORTED，
+    // 开启 transitional.clarifyTimeoutError 后是 ETIMEDOUT，两个都判最稳。
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+      console.error('[HTTP ✗ 超时]', error.config?.url);
+      return Promise.reject(
+        new Error(`请求超时（${httpClient.defaults.timeout}ms），请检查后端是否阻塞或网络是否稳定`)
+      );
+    }
+
+    // ── 分支 3：无响应 + 其他 → 请求根本没到达后端 ───────────────────────────
+    console.error('[HTTP ✗ 网络]', error.message);
+    return Promise.reject(
+      new Error('无法连接后端服务，请确认后端已在 http://127.0.0.1:8000 启动')
+    );
   }
 );

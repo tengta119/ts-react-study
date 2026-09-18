@@ -1,5 +1,4 @@
-// 💡 实现时记得补上这行导入（现在先留空是为了让脚手架保持可编译）：
-// import { httpClient } from './httpClient';
+import { httpClient } from './httpClient';
 import type { ApiUser } from '../TASK-005-refactor-hook/types';
 import type { PageResult, UserQueryParams } from './types';
 
@@ -18,14 +17,13 @@ import type { PageResult, UserQueryParams } from './types';
 export async function fetchUserPage(
   params: UserQueryParams
 ): Promise<PageResult<ApiUser>> {
-  // TODO ③【你来实现】
-  //   1. 调用 httpClient.get<PageResult<ApiUser>>('/users/page', { params })（记得先导入 httpClient）
-  //      提示：第二个参数对象的 params 字段是 axios 的专用写法，
-  //            它会自动把对象序列化成 ?page=1&size=5，并自动忽略 undefined 的字段，
-  //            还会自动做 URL 编码（keyword 里含空格/中文也不会出错）。
-  //   2. 返回的是 AxiosResponse 包裹体，真正的业务数据在 .data 上，记得解出来。
-  //   3. 函数签名承诺返回 Promise<PageResult<ApiUser>>，TS 会强制你返回正确形状。
-  throw new Error(
-    `TODO: fetchUserPage 尚未实现（当前收到参数 page=${params.page}, size=${params.size}, keyword=${params.keyword ?? '无'}）`
-  );
+  // axios 的第二个参数对象用 params 字段承载查询参数：
+  //  1. 自动序列化成 ?page=1&size=5
+  //  2. 值为 undefined 的字段自动忽略（不会拼出 keyword=undefined）
+  //  3. 自动做 URL 编码（keyword 含中文/空格也安全）
+  const res = await httpClient.get<PageResult<ApiUser>>('/users/page', { params });
+
+  // async 函数会自动把返回值包装成 Promise.resolve(...)，
+  // 所以这里只需要普通 return，不需要（也不能）手写 new Promise()
+  return res.data;
 }

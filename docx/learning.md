@@ -1,6 +1,6 @@
 # 学习进度与知识看板 (learning.md)
 
-> 当前状态：**阶段 8 已开启 🟡 ｜ 正在推进 TASK-007（统一请求层 + 服务端分页联调）（2026-09-17）**
+> 当前状态：**阶段 8 第一关 TASK-007 已通关 ✅ ｜ 下一目标：TASK-008（JWT 登录认证 + 路由守卫）（2026-09-17）**
 > 核心策略：**先理解 → 自己写 → 教练 Review → 纠错修改 → 总结归纳**
 
 ---
@@ -15,7 +15,17 @@
 | [`TASK-004`](./tasks/TASK-004-api.md) | 对接后端 API 与副作用处理 | ✅ 已通关 | `src/exercises/TASK-004-api/UserListApi.tsx` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-005`](./tasks/TASK-005-refactor-hook.md) | 组件拆分、父子通信与自定义 Hook | ✅ 已通关 | `src/exercises/TASK-005-refactor-hook/` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-006`](./tasks/TASK-006-router.md) | React Router 单页路由与动态传参 | ✅ 已通关 | `src/exercises/TASK-006-router/` | 2026-09-17 · 验收通过，已通关归档 |
-| [`TASK-007`](./tasks/TASK-007-http-layer.md) | 统一请求层封装与服务端分页联调 | 🟡 进行中 | `src/exercises/TASK-007-http-layer/` | — |
+| [`TASK-007`](./tasks/TASK-007-http-layer.md) | 统一请求层封装与服务端分页联调 | ✅ 已通关 | `src/exercises/TASK-007-http-layer/` | 2026-09-17 · 验收通过，已通关归档 |
+
+**TASK-007 总结**：
+- 搭出**四层前端请求架构**：`httpClient`（基础设施）→ `userApi`（Repository）→ `usePagedUsers`（Service/Hook）→ `UserPagedList` + `Pagination`（View），与 Spring Boot 分层一一对应；
+- 掌握 **axios 拦截器**作为前端「横切关注点」：请求拦截器统一注入 `Authorization: Bearer <token>`（`AxiosHeaders.set` 官方 API），响应拦截器把异常归一化为**四分支**（`ERR_CANCELED` 优先 → 有 `response` 取 `detail` 并兜底 `HTTP xxx` → 超时双码 → 无响应网络不可达）；
+- 打通**服务端分页契约** `PageResult<T>`（`list/total/page/size/totalPages`），掌握 `offset = (page-1)*size` 与「`totalPages` 以后端为权威」；
+- 用 `useRef` **请求序号法**解决竞态（`try` 与 `finally` 双处比对），并在 `<StrictMode>` 双跑 effect 场景下验证有效；
+- 修正了一个隐蔽的时序缺陷：`loading` 初始值必须为 `true`（`useEffect` 在渲染提交后才执行，首帧只能读到初始值）；
+- 用 Vite dev proxy 绕过开发期跨域（等价生产 Nginx `proxy_pass`）；调试日志已用 `import.meta.env.DEV` 治理。
+
+**下一步推荐目标**：开启 **TASK-008：JWT 登录认证与路由守卫**（`AuthContext` 登录态共享、`ProtectedRoute` 守卫、401 全局跳登录、`TOKEN_KEY` 读写闭环）。
 
 **TASK-006 总结**：
 - 深刻掌握了现代单页应用（SPA）无刷新路由的底层机制（利用 HTML5 `pushState` 修改地址栏，在内存中静默挂载卸载组件，彻底告别传统多页跳转白屏）；
@@ -23,7 +33,7 @@
 - 洞悉了动态路由 `:id` 底层正则命名捕获组的解析机制，彻底融会贯通了与 Spring Boot `@PathVariable` 的底层一致性；
 - 熟练运用 `useParams<{ id: string }>()` 安全提取路径参数、`useNavigate()` 编程式导航回退，以及 `<NavLink>` 动态 `isActive` 菜单高亮。
 
-**下一步进行中**：**TASK-007「统一请求层封装与服务端分页联调」**（阶段 8 第一关）。基础设施已由教练就位：`axios` 已安装、`vite.config.ts` 已配置 `/api` 开发代理、`backend/main.py` 已新增 `GET /api/users/page` 分页接口、`src/exercises/TASK-007-http-layer/` 脚手架与 TODO 清单已生成，学员可直接打开文件开始编码。
+**下一步进行中**：**TASK-008「JWT 登录认证与路由守卫」**（阶段 8 第二关）。TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `Authorization` 插槽、响应拦截器里预留的 401 分支位置。
 
 ---
 
@@ -48,7 +58,7 @@
 | **阶段 5** | **副作用与生命周期 (useEffect)** | 掌握数据请求、定时器清理、依赖项数组机制 | ✅ 阶段通关（TASK-004 通关） |
 | **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | ✅ 阶段通关（TASK-005 通关） |
 | **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | ✅ 阶段通关（TASK-006 通关） |
-| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | 🟡 进行中（TASK-007 进行中） |
+| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | 🟡 进行中（TASK-007 通关，TASK-008/009 待开） |
 
 ---
 
@@ -85,6 +95,17 @@
 - [x] **集中式路由分发体系**：`<BrowserRouter>`, `<Routes>`, `<Route>` 映射规则
 - [x] **动态路由与模式匹配**：`:id` 正则捕获提取，与 Spring `@PathVariable` 深度对齐
 - [x] **路由状态感知与编程式导航**：`<NavLink>` 激活高亮与 `useNavigate()` 流程跳转
+- [x] **Axios 统一请求层**：`axios.create` 实例（baseURL/超时）+ 请求/响应拦截器（横切关注点 ⇄ Filter/HandlerInterceptor）
+- [x] **错误归一化四分支**：`ERR_CANCELED` 优先 → 有 `response`（取 `detail`、兜底 `HTTP <status>`）→ 超时双码（`ECONNABORTED`/`ETIMEDOUT`）→ 无响应（网络不可达）；统一 `new Error(...)` 契约
+- [x] **Repository 层职责边界**：只做 URL + 参数 + 拆 `.data`，保证「类型签名 = 运行时值」（拒绝「拦截器里 `return response.data`」）
+- [x] **axios `params` 机制**：自动序列化、自动忽略 `undefined`、自动 URL 编码；ES6 属性简写 `{ params }`
+- [x] **开发期跨域方案**：Vite dev proxy `/api` → 后端（浏览器视角同源），等价生产 Nginx `proxy_pass`
+- [x] **服务端分页契约**：`PageResult<T> = { list, total, page, size, totalPages }`，`offset = (page-1)*size`，`totalPages` 以后端为权威
+- [x] **分页状态机 Hook**：page/size/keyword 驱动请求、黄金四态、`setPage` 边界校验、`setKeyword` 联动归 1、`reload` 自增刷新令牌
+- [x] **请求竞态保护（`useRef` 序号法）**：`try` 与 `finally` 双处比对，`<StrictMode>` 双跑 effect 下验证有效
+- [x] **`useEffect` 时序心智**：effect 在渲染提交后执行 → 首帧只能读到 state 初始值（挂载即请求的页面 `loading` 初值必须为 `true`）
+- [x] **JSX 事件传参判据**：「括号即调用，引用才传递」——`onClick={fn(arg)}` / `onClick={fn}` / `onClick={() => fn(arg)}` 三态取舍
+- [x] **调试日志生产治理**：`import.meta.env.DEV` 包裹，避免构建包输出请求细节；配置项抽常量化（`TOKEN_KEY`）
 
 ---
 
@@ -94,18 +115,17 @@
   - [ ] `interface` 属性定义（可选 `?`、只读 `readonly`）
   - [ ] `interface` 与 `type` 的区别与取舍
   - [ ] 联合类型 (`|`) 与 字面量类型
-- [ ] **阶段 8 · TASK-007 进行中（统一请求层 + 服务端分页）**：
-  - [ ] Axios 实例与请求拦截器（统一 baseURL / 超时 / `Authorization: Bearer <token>` 插槽）
-  - [ ] 响应拦截器与错误归一化（4xx/5xx 自动抛错、`error.response.data.detail`、超时 `ECONNABORTED`、后端未启动）
-  - [ ] Repository 接口层 `fetchUserPage(params): Promise<PageResult<ApiUser>>`
-  - [ ] 服务端分页契约对齐：`PageResult<T> = { list, total, page, size, totalPages }`（`offset = (page-1)*size`）
-  - [ ] 分页 + 关键字搜索联动（查询条件变化必须把 `page` 归 1）
-  - [ ] 请求竞态保护（`useRef` 请求序号 / `AbortController` + `signal`）
-  - [ ] 分页控件边界（首末页按钮禁用、`total === 0` 文案、Loading 期间禁止连点）
-  - [ ] Vite dev proxy 反向代理绕过跨域（等价 Nginx `proxy_pass`）
-- [ ] **阶段 8 后续路线（待开启）**：
-  - [ ] JWT 登录与鉴权：`AuthContext` + `ProtectedRoute` 路由守卫 + 401 全局跳登录（TASK-008）
-  - [ ] 全栈综合项目收口：登录 → 分页列表 → 详情 → 增删 → 404，并完成 `npm run build` 生产构建（TASK-009）
+- [ ] **阶段 8 · TASK-008 待开启（JWT 登录认证 + 路由守卫）**：
+  - [ ] 登录表单（受控 + 校验）与后端 `POST /api/auth/login` 联调
+  - [ ] token 持久化：`localStorage.setItem(TOKEN_KEY, ...)`（与拦截器读写共用常量）
+  - [ ] `AuthContext` + `useContext`：登录态全局共享（避免 Prop Drilling）
+  - [ ] `ProtectedRoute` 路由守卫：未登录 `<Navigate to="/login" replace />`
+  - [ ] 401 全局处理：响应拦截器里清 token → 跳登录（TASK-007 已预留插槽）
+  - [ ] 登出与登录态过期体验（重定向后回跳原页面）
+- [ ] **阶段 8 · TASK-009（全栈综合项目收口）**：
+  - [ ] 登录 → 分页列表 → 详情 → 增删 → 404 全链路串成中后台
+  - [ ] 进阶项：删除后末页页码自动回退、搜索防抖、`AbortController` 真正取消在途请求
+  - [ ] `npm run build` 生产构建 + Nginx 静态托管与反向代理部署
 
 ---
 
@@ -125,3 +145,8 @@
 10. 为什么在 Props 接口中定义了属性，组件内依然报 TS2304？（详见 `docx/questions/react-core.md` Q-RC-08）
 11. `NavLink`、`Routes` 与 `BrowserRouter` 是如何协同运转的？（详见 `docx/questions/api-and-router.md` Q-AR-03）
 12. 动态路由 `:id` 与实际路径 `/users/3` 是如何对应解析的？底层匹配机制是什么？（详见 `docx/questions/api-and-router.md` Q-AR-04）
+13. `Promise.reject()` 到底有什么用？为什么拦截器里必须用它而不能 `return error`？（详见 `docx/questions/api-and-router.md` Q-AR-07）
+14. `async` 函数的返回值是怎么变成 Promise 的？为什么 `new Promise(value)` 会直接报错？（详见 `docx/questions/api-and-router.md` Q-AR-08）
+15. `onClick={() => onPageChange(page + 1)}` 为什么不能写成 `onClick={onPageChange(page + 1)}`？（详见 `docx/questions/react-core.md` Q-RC-09）
+16. 为什么 `loading` 初始值必须是 `true`？`useEffect` 与渲染提交的时序关系是什么？（详见 `docx/questions/hooks.md` Q-HK-06）
+17. 分页场景下「页码」的权威来源到底是本地 state 还是后端返回的 `page`？（详见 `docx/questions/api-and-router.md` Q-AR-09）
