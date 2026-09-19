@@ -137,21 +137,29 @@ JS 可以被绕过（改前端代码、直接调接口）。**后端必须独立
 
 ## ✅ 验收标准 (DoD)
 
-- [ ] ① `tokenStore.ts` 完成 `saveToken / readToken / clearToken`，且统一使用 `TOKEN_KEY` 常量（取消脚手架里注释掉的导入）
-- [ ] ② `authApi.ts` 完成三个接口函数，URL 写相对子路径（`/auth/login` 而非 `/api/auth/login`）
-- [ ] ③ `AuthProvider` 完成：`user` / `initializing` 三态、启动时用 token 恢复登录态、`login` **先写 token 再更新用户**、`logout` 清 token 与用户
-- [ ] ④ `LoginPage` 完成：受控表单 + `preventDefault` + `submitting` 禁用 + 错误中文提示 + 成功后跳转
-- [ ] ⑤ `ProfilePage` 展示 `username / name / role`，登出后回到登录页且 token 已清除
-- [ ] ⑥ `ProtectedRoute` 三态分流：`initializing` 显示校验中、未登录 `<Navigate to="/login" replace />`、已登录放行
-- [ ] ⑦ `AuthApp` 里 `/profile` 与 `/users` 已用 `<ProtectedRoute>` 包裹（原先的直接放行路由已替换）
-- [ ] ⑧ `useAuth()` 在 Provider 之外调用时报出明确错误（已由教练提供，需实际验证一次）
-- [ ] ⑨ 刷新浏览器仍保持登录态（不闪回登录页）；未登录直接访问 `/profile` 会跳到 `/login`；后退键不会死循环
-- [ ] ⑩ 用 `POST /api/auth/logout` 制造 token 失效，观察到后端中文 401 提示（并理解为何此时界面仍显示已登录 —— 引出进阶项）
-- [ ] ⑪ 通过教练 Code Review 与口试
+- [x] ① `tokenStore.ts` 完成 `saveToken / readToken / clearToken`，统一使用 `TOKEN_KEY`
+- [x] ② `authApi.ts` 完成三个接口函数（相对子路径 + 泛型齐全，且不写任何状态）
+- [x] ③ `AuthProvider` 完成：`user` / `initializing` 三态、启动恢复登录态、`login` **先写 token 再更新用户**、`logout` 清 token 与用户
+- [x] ④ `LoginPage` 完成：受控表单 + `preventDefault` + `submitting` 禁用 + 错误中文提示 + 成功后 `navigate(replace)`
+- [x] ⑤ `ProfilePage` 展示 `username / name / role`，登出后回登录页且 token 已清除（含 `loggingOut` 防连点与防御式防空）
+- [x] ⑥ `ProtectedRoute` 三态分流：`initializing` 显示校验中、未登录 `<Navigate replace>`、已登录放行
+- [x] ⑦ `AuthApp` 里 `/profile` 与 `/users` 已用 `<ProtectedRoute>` 包裹
+- [x] ⑧ `useAuth()` 在 Provider 之外调用时报出明确错误
+- [x] ⑨ 刷新浏览器保持登录态；未登录访问受保护路径会跳 `/login`；后退不会死循环
+- [x] ⑩ 用 `POST /api/auth/logout` 制造 token 失效，观察到后端中文 401 提示
+- [x] ⑪ 通过教练 Code Review 与口试
 
-### 🚀 进阶挑战（选做）
+### 🎉 通关附加成果（超出 DoD）
+- [x] **抽离 `components/AppHeader.tsx`**：顶栏作为 Provider 子组件读取登录态，实现「未登录只显示首页/登录，登录后显示个人中心/用户列表 + 身份 + 退出」—— 入口可见性与路由可达性对齐
+- [x] **抽出 `pages/HomePage.tsx`**：路由表回归“策略表”职责（不再内联大段展示 JSX）
+- [x] **清理全部脚手架注释**：`TASK-008` 目录已无过时 TODO 残留（`grep TODO` 为空）
+- [x] **类型诚实化**：`logout: () => Promise<void>`（不再用 `void` 掩盖异步性）、事件类型改用 `React.SubmitEvent<HTMLFormElement>`（React 19 弃用 `FormEvent`）
+- [x] `tsc -b` / `eslint` / `npm run build` 三项全绿
+- [x] **编程式端到端验证**（经 Vite dev proxy）：登录 → 200 + token；带 token 访问 `/api/auth/me` → 200；无 token → 401；分页接口 → 200（total=23）；SPA 深链 `/profile` → 200
+
+### 🚀 进阶挑战（转入 TASK-009 一并覆盖）
 - [ ] **登录后回跳原页面**：守卫跳转时带 `state={{ from: location.pathname }}`，登录成功后 `navigate(from, { replace: true })`
-- [ ] **全局 401 处理**：拦截器发现 401 → 清 token → 通知 AuthProvider → 跳登录（注意坑 4 的解耦约束）
+- [ ] **全局 401 处理**：拦截器发现 401 → 清 token → 通知 AuthProvider → 跳登录（注意“拦截器不在 React 树内”的解耦约束）
 - [ ] **角色鉴权**：`role !== 'ADMIN'` 时拒绝进入某页面（对照后端 `@PreAuthorize`）
 - [ ] **token 过期提示**：用 `expiresIn` 做倒计时，临期提醒或自动静默刷新
-- [ ] **导航栏联动**：登录后才显示「用户列表 / 个人中心」，未登录时只显示「登录」
+- [x] **导航栏联动**：已在本任务完成（见上方附加成果）

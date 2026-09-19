@@ -225,6 +225,191 @@
   ```
 - **掌握标记**：[ ] 待主动回忆
 
+---
+
+### Q-RC-10: `React.FC<{ children: React.ReactNode }> = ({ children })` 这行到底是什么意思？
+- **提问背景**：写 `AuthProvider` 时看到这行声明，每个符号都认识、但合起来不知道在说啥；尤其不理解为什么尖括号里可以写一个“对象”。
+- **核心解答 (Answer)**：把它拆成四段看就清楚了：
+  ```tsx
+  export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => { ... };
+  //                    └①┘└②┘           └③ 泛型实参：props 的形状 ┘  └④ 解构形参 ┘
+  ```
+  1. **`React.FC`** = **Function Component** 的类型别名。`@types/react` 里的定义是：
+     ```ts
+     interface FunctionComponent<P = {}> {
+       (props: P): ReactNode | Promise<ReactNode>;   // ← 带“调用签名”的接口
+       propTypes?: any; displayName?: string; ...
+     }
+     type FC<P = {}> = FunctionComponent<P>;
+     ```
+     也就是说：**它是一个“函数类型”的描述**——输入 props，输出可渲染内容。
+  2. **`<{ children: React.ReactNode }>`** = 给这个泛型传入实参，即**声明这个组件的 Props 长什么样**。这里用的是**内联匿名对象类型**（structurally typed）：它规定“我只接受一个名为 `children` 的属性”。
+  3. **`React.ReactNode`** = “所有能被 React 渲染的东西”的联合类型（JSX 元素、字符串、数字、布尔、`null`/`undefined`、数组、Fragment 等）。**它不是 `JSX.Element`**，比后者宽得多。
+  4. **`({ children }) =>`** = 函数形参是 **props 对象**，用 ES6 解构只取出 `children`。
+     ⚠️ 这也解释了你之前踩过的 TS2304：**类型里声明了属性 ≠ 函数体内存在同名变量**，必须解构出来。
+  - **`children` 是个“特殊 prop”**：JSX 标签之间的内容会自动作为 `children` 传进来：`<AuthProvider>内容</AuthProvider>` ⇒ `props.children === '内容'`。自 React 18 起，`FC` **不再自动**给 props 加上 `children?: ReactNode`，所以必须像这样显式声明。
+  - **也可以不用 `FC`（现在社区反而更推荐）**：`FC` 早期版本会自动注入 `children`（现已移除）、不支持泛型组件、对 `defaultProps` 推导也不友好。等价写法：
+    ```tsx
+    export function AuthProvider({ children }: { children: React.ReactNode }) { ... }
+    export const AuthProvider = ({ children }: AuthProviderProps) => { ... };  // 单独定义 Props 接口
+    ```
+    本项目为与 TASK-007 风格统一而使用 `React.FC`，两种写法在运行上**完全一样**。
+- **Java / 后端对照视角 (Java Mapping)**：
+  | React / TS | Java |
+  | :--- | :--- |
+  | `React.FC<Props>` | **函数式接口**，如 `Function<Props, ReactNode>`（有单一抽象方法：`(props) => 视图`） |
+  | `<{ children: React.ReactNode }>` 泛型实参 | `Comparable<T>` 的 `T`；但 TS 可以传**匿名内联结构类型**，Java 必须先生成 interface |
+  | `({ children })` 解构 | 方法体内写 `var children = props.getChildren();` |
+  | 类型运行时不存在 | **类型擦除**：JS 里组件就是一个普通函数，`React.FC` 不产生任何运行时代码 |
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // 三种等价写法
+  const A: React.FC<{ children: React.ReactNode }> = ({ children }) => <div>{children}</div>;
+  const B = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+  const C = (props: { children: React.ReactNode }) => <div>{props.children}</div>; // 不解构就得写 props.xxx
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-RC-11: `<AuthContext.Provider value={value}>{children}</AuthContext.Provider>` 这行到底在干什么？为什么必须把 `children` 再渲染出来？
+- **提问背景**：知道它“大概是把值传下去”，但不明白三件事：① `Provider` 是什么东西（没在 DOM 里看到它）？② 为什么要把 `children` 原样渲染出来（不写会怎样）？③ `value` 是怎么被里面的组件读到的？
+- **核心解答 (Answer)**：
+  - **分工**：`createContext(null)` 只创建了一个“频道/信封”，它**自身不存数据**；`<XxxContext.Provider value={...}>` 才是“**把值放进这个频道并向下广播**”的那一层。
+  - **它是“隐形组件”**：`Provider` 不是 HTML 标签，而是 React 内置的特殊组件（编译后是一个带 `$$typeof` 标记的对象）。React 渲染到它时会走一条特殊分支：**不创建 DOM 节点**，而是把 `value` 压入该 Context 的内部“值栈”，然后继续渲染它的子树。所以在页面上它“看不见”，但能在 React DevTools 的组件树里看到 `AuthContext.Provider` 这个节点。
+  - **读取机制**：子树里任意组件调用 `useContext(AuthContext)`（我们封装成了 `useAuth()`），React 会**就进向上查找最近的 Provider**，取它当前的 `value`。=> 等价于心智：“**作用域内的环境变量**”。
+  - **为什么必须把 `children` 渲染出来**：Provider 的职责只是“提供作用域”，**它完全不知道它包的是什么内容**——内容由调用方通过 `children` 传入（这就是控制反转）。把 `{children}` 渲染出来 = “打开作用域 → 渲染子树”。
+    - 漏写 `{children}`：子树根本不会被渲染 → **白屏**（但 `useAuth` 也不报错，因为消费方根本没挂载，排查时很迷惑）；
+    - 写成 `return children`（不返回 Provider）：子树渲染了，但**作用域没生效**，里面 `useAuth()` 拿到默认值 `null` → 抛“useAuth 必须在 <AuthProvider> 内部使用”。这两种现面都能反向帮你定位问题。
+  - **`value` 变化会重渲染所有消费方**：React 用 `Object.is` 比较新旧 `value`。我们的 `value` 是一个**每次渲染新建的对象**，因此 Provider 每次重渲染都会让所有 `useAuth()` 的组件跟着重渲染（即使它们用到的字段没变）。当前规模无需优化，但要知道这个事实（优化手段：`useMemo`；或把状态拆成多个 Context）。
+  - **没有 Provider 时生什么**：`createContext(null)` 的默认值就是 `null`，所以 `useAuth()` 里的 `if (ctx === null) throw ...` 会报出一个**直奔根因**的错。若默认值写成一个空对象，就会退化成“到处 undefined”的隐形 Bug——所以“默认值给 null + 消费端主动报错”是一个刻意设计。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - **最贴切的类比：`try-with-resources` 式的作用域**
+    ```java
+    try (var scope = AuthScope.open(value)) {   // ⇄ <AuthContext.Provider value={value}>
+        renderSubtree();                          // ⇄ {children}
+    }                                             // ⇄ </AuthContext.Provider>（离开子树时恢复上一层）
+    ```
+    React 内部就是“值栈”的 push/pop，与 `ThreadLocal` / `SecurityContextHolder` 的进入-退出语义**完全同构**；
+  - `useContext(...)` ⇄ `SecurityContextHolder.getContext()`（从当前作用域取出主体）；
+  - `children` 透传 ⇄ **模板方法模式**：框架（Provider）定义执行骨架，子步骤（子树）由调用方作为回调/`Supplier<ReactNode>` 注入；
+  - 缺少 Provider 就调 `useContext` ⇄ 在请求线程之外调 `RequestContextHolder.getRequestAttributes()` 拿到 `null`。
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // 编译视角：Provider 只是一个带 value 的 JSX 元素，children 只是它的一个 prop
+  <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  // 等价于
+  <AuthContext.Provider value={value} children={children} />
+
+  // 消费端：不关心值从哪里来，只“就近取用”
+  function NavBar() {
+    const { user } = useAuth();      // 内部就是 useContext(AuthContext)
+    return <span>{user ? user.name : '未登录'}</span>;
+  }
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-RC-12: 表单提交/输入事件到底该用什么类型？`React.FormEvent` 为什么在 React 19 类型里被弃用？
+- **提问背景**：按旧教程写成 `(e: React.FormEvent<HTMLFormElement>)`，编辑器报 `TS6385: FormEvent is deprecated`，提示“You probably meant to use ChangeEvent, InputEvent, SubmitEvent, or just SyntheticEvent instead”。
+- **核心解答 (Answer)**：
+  - **弃用理由（官方原话）**：*“FormEvent doesn't actually exist.”* —— `FormEvent` **不是 DOM 规范里真实存在的事件接口**，它只是 React 早期为了描述“表单相关事件”而自造的一个笼统类型。React 19 的 `@types/react` 开始让类型**与真实 DOM 事件名对齐**，于是它被标记为 `@deprecated`。
+  - **正确做法：按“事件名”选类型（本地 `node_modules/@types/react/index.d.ts` 为准）**：
+    | JSX 属性 | 期望类型 | DOM 规范里的事件 |
+    | :--- | :--- | :--- |
+    | `onSubmit` | `React.SubmitEvent<HTMLFormElement>` | `SubmitEvent` |
+    | `onChange` | `React.ChangeEvent<HTMLInputElement>` | `Event`（React 做了封装）|
+    | `onInput` | `React.InputEvent<HTMLInputElement>` | `InputEvent` |
+    | `onClick` | `React.MouseEvent<HTMLButtonElement>` | `MouseEvent` |
+    | `onKeyDown` | `React.KeyboardEvent<HTMLInputElement>` | `KeyboardEvent` |
+    | `onFocus` / `onBlur` | `React.FocusEvent<HTMLInputElement>` | `FocusEvent` |
+    | 不确定时的兜底 | `React.SyntheticEvent<T>` | —— |
+  - **本地类型定义里的 `SubmitEvent`**（可直接 Ctrl+点击 看到）：
+    ```ts
+    interface SubmitEvent<T = Element> extends SyntheticEvent<T, NativeSubmitEvent> {
+      submitter: HTMLElement | null;
+      // SubmitEvents are always targetted at HTMLFormElements.
+      target: EventTarget & HTMLFormElement;   // ← target 已经是表单元素，无需断言
+    }
+    type SubmitEventHandler<T = Element> = EventHandler<SubmitEvent<T>>;
+    ```
+    另外 `FormHTMLAttributes` 里写的是 `onSubmit?: SubmitEventHandler<T> | undefined;` —— **这就是编译器报错里那个“目标类型”的来源**。
+  - **三种“自己查”的方法**（比背下来更可靠）：
+    1. 把鼠标悬停在 JSX 的 `onSubmit` 上，IDE 直接显示期望类型；
+    2. `Ctrl + 点击` 跳进 `index.d.ts` —— **它就是前端的 Javadoc**；
+    3. 读 TS 报错里的 `... is not assignable to type 'SubmitEventHandler<HTMLFormElement>'` —— **编译器已经把你该用的类型写在报错里了**。
+  - **工程素养提醒**：博客 / 教程 / AI 的回答都可能滞后于类型定义。看到 `TS6385` 或 `@deprecated`，**以本地类型定义与官方文档为准**；也不要用 `@ts-ignore` 把弃用提示压掉（那样只会把技术债积到未来）。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - `TS6385 + @deprecated 注释` ⇄ Java 的 **`@Deprecated` 注解 + Javadoc 的 `@deprecated` 标签**：两者都是“还能用，但不该再用”的信号，且都会带上“请改用 X”的说明；
+  - **读 `index.d.ts`** ⇄ **读 Spring 源码 / Javadoc**，而不是只读二手博客；
+  - **类型必须映射真实存在的规范对象**：`FormEvent` 就像你在 Java 里拍脑袋造一个规范里不存在的 `HttpFormException` 去继承 `Exception`——能用，但会误导所有人对“标准体系”的理解（对比：Java 有 `FileNotFoundException`、`SocketTimeoutException` 这类**与真实场景一一对应**的标准异常）。
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // ❌ React 18 及以前的旧写法（现在会得 TS6385 弃用提示）
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => { e.preventDefault(); };
+
+  // ✅ React 19：用真实事件名对应的类型
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => { e.preventDefault(); };
+
+  // ✅ 输入框变更
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { setValue(e.target.value); };
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-RC-13: `<AuthProvider>` 所在的组件（AuthApp）为什么不能自己用 `useAuth()`？
+- **提问背景**：想在 `AuthApp` 的导航栏里根据登录态显示“当前用户 / 退出登录”入口，于是直接在本组件里调 `useAuth()` —— 结果要么拿到 `null`，要么直接抛“useAuth 必须在 <AuthProvider> 内部使用”。
+- **核心解答 (Answer)**：
+  - **Context 的作用域只向下（子树），不包括“建立它的那个组件自身”**。
+    ```tsx
+    export const AuthApp = () => {
+      const { user } = useAuth();        // ❌ 此时 Provider 还没渲染，本组件不在其子树里
+      return (
+        <AuthProvider>                    // ← Provider 从它返回的这份 JSX 才开始生效
+          <BrowserRouter>…</BrowserRouter>
+        </AuthProvider>
+      );
+    };
+    ```
+    组件**先执行**（求值 JSX），Provider **后才渲染**；所以“自己包我自己”在逻辑上不可能成立。
+  - **正确做法（三种）**：
+    1. **抽出子组件**（推荐）：把需要读 context 的部分（如 `<AppHeader/>`）拆成独立组件，放到 Provider **内部**渲染；
+    2. **把 Provider 提升到更外层**：如放到 `main.tsx` 里包住 `<App/>`，那么 `App` 及其所有子组件都能消费；
+    3. **把“状态”与“展示”分层**：`AuthApp` 只管装配 Provider + Router，展示层一律是子组件。
+  - **普遍规律**：不仅是 Context——**任何“提供者”都只能影响它的后代**。同理：`<BrowserRouter>` 所在的组件自己不能用 `useNavigate`；`<ThemeProvider>` 所在的组件自己不能用 `useTheme`。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - 同构于“**定义 `@Bean` 的 `@Configuration` 类自己不能直接注入那个 Bean**”（生命周期顺序上它还未就绪）：
+    ```java
+    @Configuration
+    class AuthConfig {
+      @Autowired CurrentUser user;                 // ❌ 循环/时机问题
+      @Bean AuthScope authScope() { return new AuthScope(); }   // ← 作用域从这里才开始存在
+    }
+    ```
+  - 也像在**同一个方法里**先 `ThreadLocal.set(x)` 再读 —— 顺序/作用域不对；
+  - 心智模型：**Provider = 作用域的起点（类似事务/请求上下文的开启点），“开户的人”自己不在这个账户里。**
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // ❌ 本组件既当“提供者”又当“消费者”
+  const AuthApp = () => {
+    const { user } = useAuth();
+    return <AuthProvider><Header user={user} /></AuthProvider>;
+  };
+
+  // ✅ 职责分开：外面只管装配，里面负责消费
+  const AuthApp = () => (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppHeader />   {/* 在 Provider 子树内部 → 可以 useAuth() */}
+        <Routes>…</Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
 
 
 

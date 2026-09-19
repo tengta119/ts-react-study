@@ -26,7 +26,7 @@
 ## 💡 所需知识点与提示
 
 - 多字段状态的组织方式：既可以写 4 个独立 `useState`，也可以用一个对象 `useState<FormData>`；本任务推荐后者，顺便练习“一个 `handleChange` 处理所有字段”。
-- 提交事件类型：`React.FormEvent<HTMLFormElement>`；`e.preventDefault()` 用于阻止浏览器默认的表单提交跳转（不写会导致页面刷新、state 全丢）。
+- 提交事件类型：`React.SubmitEvent<HTMLFormElement>`（⚠️ **注意版本差异**：旧教程普遍写 `React.FormEvent<HTMLFormElement>`，但它已在 **React 19 的 `@types/react` 里被标记 `@deprecated`**——因为 DOM 规范里并不存在名为 FormEvent 的事件；遇到 `TS6385` 提示时请以本地类型定义为准，详见 `docx/questions/react-core.md` Q-RC-12）；`e.preventDefault()` 用于阻止浏览器默认的表单提交跳转（不写会导致页面刷新、state 全丢）。
 - 通用变更处理思路：利用 input 的 `name` 属性 + 计算属性名动态更新。
 - 校验错误信息建议统一在一个结构里管理（如 `Record<string, string>`），而不是每个字段开一个 error state。
 - 派生值：提交按钮的 `disabled` 由 `agree` 直接算出，不要另存 state。

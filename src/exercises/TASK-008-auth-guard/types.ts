@@ -44,6 +44,9 @@ export interface AuthContextValue {
   initializing: boolean;
   /** 登录：成功后应写入 token、更新 user，并返回用户信息 */
   login: (cmd: LoginCommand) => Promise<AuthUser>;
-  /** 登出：清 token、清 user（服务端注销为可选） */
-  logout: () => void;
+  /** 登出：清 token、清 user（服务端注销为可选）
+   *  ⚠️ 声明为 Promise<void>：它会先 await 服务端注销请求、再在 finally 里清理本地状态。
+   *     契约如实写出异步性，调用方才知道需要 `await logout()` 后再跳转。
+   */
+  logout: () => Promise<void>;
 }

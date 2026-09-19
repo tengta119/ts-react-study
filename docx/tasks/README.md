@@ -17,7 +17,8 @@
 | [`TASK-005`](./TASK-005-refactor-hook.md) | **组件拆分、父子通信与自定义 Hook 抽离** | Props 只读与回调, 容器/展示组件解耦, 泛型 `useFetch<T>` | ⭐⭐⭐ | ✅ 已通关（2026-09-17） |
 | [`TASK-006`](./TASK-006-router.md) | **React Router 前端单页路由与动态传参** | `BrowserRouter`, `Routes/Route`, `useParams`, `useNavigate` | ⭐⭐⭐ | ✅ 已通关（2026-09-17） |
 | [`TASK-007`](./TASK-007-http-layer.md) | **统一请求层封装与服务端分页联调** | Axios 实例与拦截器, `PageResult<T>` 分页契约, 搜索联动, 请求竞态, 分页边界 | ⭐⭐⭐⭐ | ✅ 已通关（2026-09-17） |
-| [`TASK-008`](./TASK-008-auth-guard.md) | **JWT 登录认证与路由守卫** | `AuthContext`, `ProtectedRoute`, 401 全局跳登录, 登录态持久化 | ⭐⭐⭐⭐ | 🟡 进行中 |
+| [`TASK-008`](./TASK-008-auth-guard.md) | **JWT 登录认证与路由守卫** | `AuthContext`, `ProtectedRoute`, 401 全局跳登录, 登录态持久化 | ⭐⭐⭐⭐ | ✅ 已通关（2026-09-17） |
+| TASK-009（待开启） | **全栈中后台综合收口** | 完整 CRUD 闭环, 全局 401, 角色鉴权, 防抖/请求取消, 生产构建与部署 | ⭐⭐⭐⭐⭐ | 🟡 进行中 |
 ---
 
 ## 🛠️ 标准实战与全自动文档联动流程

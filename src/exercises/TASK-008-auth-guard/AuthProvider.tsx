@@ -1,59 +1,99 @@
 import type React from 'react';
+import { useEffect, useState } from 'react';
 import { AuthContext } from './AuthContext';
-import type { AuthContextValue } from './types';
+import { fetchMeApi, loginApi, logoutApi } from './authApi';
+import { clearToken, readToken, saveToken } from './tokenStore';
+import type { AuthContextValue, AuthUser, LoginCommand } from './types';
 
 /**
- * TASK-008: 登录态提供者（AuthProvider）—— 本任务的核心
+ * TASK-008: 登录态提供者（AuthProvider）
  *
- * 它承担的角色，相当于 Spring Security 里的 `SecurityContextPersistenceFilter`：
- *   启动时把"持久化的登录态"恢复进上下文，登录/登出时更新它。
+ * 角色类比：Spring Security 的 `SecurityContextPersistenceFilter`
+ *   —— 启动时把"持久化的登录态"恢复进上下文；登录/登出时更新它。
  *
- * ================== TODO ③【你来实现：本任务最核心的一块】==================
- * 请完成三件事（顺序即实现顺序）：
- *
- * 1) 状态声明：
- *      const [user, setUser] = useState<AuthUser | null>(null);
- *      const [initializing, setInitializing] = useState(true);
- *    ⚠️ initializing 的初始值为什么必须是 true？（回忆 TASK-007 那次首帧闪烁的教训：
- *       刷新页面时我们"还不知道"登录态，若直接当作未登录，用户一刷新就会被踢回登录页）
- *
- * 2) 「启动时恢复登录态」的副作用（useEffect + 空依赖数组）：
- *      - 先读 token：readToken()
- *      - 没有 token → 直接 setInitializing(false)（确认为未登录）
- *      - 有 token   → 用 token 换用户信息：fetchMeApi()
- *                      成功 → setUser(用户)；失败（失效/过期）→ clearToken()
- *      - 无论成功失败，最后都必须 setInitializing(false)，否则界面永久卡在"校验登录态…"
- *    ⚠️ 依然遵守 TASK-004 的老规矩：useEffect 回调不能直接 async，
- *       要在内部定义 async 函数再调用。
- *
- * 3) login / logout 两个方法：
- *      login(cmd)：
- *        a. const result = await loginApi(cmd)
- *        b. saveToken(result.token)   ← 必须在发后续请求之前存好，否则拦截器注入不了 Authorization
- *        c. setUser(result.user)
- *        d. return result.user（让登录页能拿到结果做跳转）
- *        ⚠️ 失败时**让异常继续往外抛**给登录页展示，不要在 Provider 里吞掉
- *      logout()：
- *        a. clearToken() + setUser(null)（本地登出必须成功）
- *        b. 可选：调用 logoutApi() 让服务端也失效（教学接口）—— 用 try/catch 包住，
- *           它是"尽力而为"：即使请求失败，本地登出也必须已完成
- *
- * 提示：Provider 的 value 每次渲染都会新建对象，因此它包裹的所有子组件都会跟着重渲染。
- *       当前规模完全不必优化，但你要知道这个事实（TASK-009 再谈 useMemo）。
- * =========================================================================
+ * 已实现的三个要点（也是本任务最深的三个坑）：
+ *   ① initializing 初值为 true —— 表达"刷新页面时我还不知道用户是谁"，
+ *      避免首帧被误判为"未登录"而把已登录用户踢回登录页。
+ *   ② 启动恢复的 useEffect 依赖数组为 [] —— "启动时恢复一次"是它的全部职责；
+ *      若写成 [user]，登录成功后 setUser 又会触发它，形成重复请求甚至死循环。
+ *   ③ login 中先 saveToken 再 setUser —— token 必须先落盘，
+ *      否则界面先渲染受保护页面、该页组件立即发请求时，拦截器读不到 token → 401。
  */
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // ⬇︎ 下面的 value 只是"占位骨架"，让页面能先跑起来。实现时请整体替换为真实状态与方法 ⬇︎
-  const placeholder: AuthContextValue = {
-    user: null,
-    initializing: false,
-    login: async () => {
-      throw new Error('TODO ③：请先实现 authApi.loginApi 与 AuthProvider.login');
-    },
-    logout: () => {
-      // TODO ③：clearToken() + setUser(null)
-    },
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  // ────────────────────────────────────────────────────────────────
+  // 1) 状态：user 为 null 表示"无用户"，配合 initializing 构成三态：
+  //      initializing=true                  → 还不知道（显示"校验登录态…"）
+  //      initializing=false && user=null    → 确认未登录（守卫应跳登录页）
+  //      initializing=false && user!=null   → 已登录（放行）
+  // ────────────────────────────────────────────────────────────────
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [initializing, setInitializing] = useState(true);
+
+  // ────────────────────────────────────────────────────────────────
+  // 2) 启动时恢复登录态（只跑一次）
+  //    useEffect 的回调不能是 async（会返回 Promise，被当成清理函数），
+  //    所以在内部定义 async 函数再调用。
+  // ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const restoreSession = async () => {
+      const token = readToken(); // 注意：这里只是"有没有 token"，不代表 token 有效
+
+      if (!token) {
+        setInitializing(false); // 确认为未登录
+        return;
+      }
+
+      try {
+        // 带着 token 问后端"我是谁"（Authorization 头由请求拦截器自动注入）
+        const me = await fetchMeApi();
+        setUser(me);
+      } catch {
+        // token 失效 / 过期 / 后端不可用 → 清掉本地 token，保持未登录
+        // （不在这里 setError：启动阶段静默降级即可，用户看到登录页就是正确的）
+        clearToken();
+      } finally {
+        // ⚠️ 无论成功还是失败都必须关掉"校验中"，否则界面永久卡在"校验登录态…"
+        setInitializing(false);
+      }
+    };
+
+    void restoreSession();
+  }, []); // ⚠️ 必须是 []：这是"启动恢复一次"，不是"每次 user 变化都重新同步"
+
+  // ────────────────────────────────────────────────────────────────
+  // 3) 登录：写入 token → 更新用户 → 把用户返回给调用方（登录页用它做跳转）
+  //    异常不在这里吞掉，让它冒泡给登录页展示（错误归一化已在拦截器完成）
+  // ────────────────────────────────────────────────────────────────
+  const login = async (cmd: LoginCommand): Promise<AuthUser> => {
+    const result = await loginApi(cmd);
+
+    // 顺序不可颠倒：先让 token 落盘，后续请求（含跳转后页面的请求）才能被拦截器注入头
+    saveToken(result.token);
+    setUser(result.user);
+
+    return result.user;
   };
 
-  return <AuthContext.Provider value={placeholder}>{children}</AuthContext.Provider>;
+  // ────────────────────────────────────────────────────────────────
+  // 4) 登出：服务端"尽力而为"，本地必须成功
+  //    ⚠️ 必须先 await 服务端接口，再清 token：
+  //       axios 的请求拦截器是【Promise 链上的微任务】，晚于当前同步代码执行。
+  //       若写成 logoutApi(); clearToken(); 同步两连击，
+  //       拦截器执行时 token 已被清掉 → 请求带上空头 → 服务端 401，注销落空。
+  // ────────────────────────────────────────────────────────────────
+  const logout = async (): Promise<void> => {
+    try {
+      await logoutApi();
+    } catch {
+      // 忽略：服务端注销失败不应阻塞本地登出（例如 token 本已失效）
+    } finally {
+      clearToken();
+      setUser(null);
+    }
+  };
+
+  // value 里只放"值"（状态与方法），不放任何声明语句 —— 对象字面量只接受 key: value
+  const value: AuthContextValue = { user, initializing, login, logout };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

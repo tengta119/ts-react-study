@@ -1,6 +1,6 @@
 # 学习进度与知识看板 (learning.md)
 
-> 当前状态：**阶段 8 已推进至 TASK-008（JWT 登录认证 + 路由守卫）🟡 进行中（2026-09-17）**
+> 当前状态：**阶段 8 第二关 TASK-008 已通关 ✅ ｜ 开启终极关 TASK-009（全栈中后台综合收口）（2026-09-17）**
 > 核心策略：**先理解 → 自己写 → 教练 Review → 纠错修改 → 总结归纳**
 
 ---
@@ -16,6 +16,18 @@
 | [`TASK-005`](./tasks/TASK-005-refactor-hook.md) | 组件拆分、父子通信与自定义 Hook | ✅ 已通关 | `src/exercises/TASK-005-refactor-hook/` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-006`](./tasks/TASK-006-router.md) | React Router 单页路由与动态传参 | ✅ 已通关 | `src/exercises/TASK-006-router/` | 2026-09-17 · 验收通过，已通关归档 |
 | [`TASK-007`](./tasks/TASK-007-http-layer.md) | 统一请求层封装与服务端分页联调 | ✅ 已通关 | `src/exercises/TASK-007-http-layer/` | 2026-09-17 · 验收通过，已通关归档 |
+| [`TASK-008`](./tasks/TASK-008-auth-guard.md) | JWT 登录认证、全局登录态与路由守卫 | ✅ 已通关 | `src/exercises/TASK-008-auth-guard/` | 2026-09-17 · 验收通过，已通关归档 |
+| [`TASK-009`](./tasks/TASK-009-admin-console.md) | 全栈中后台综合收口（CRUD + 全局 401 + 部署） | 🟡 进行中 | `src/exercises/TASK-009-admin-console/` | — |
+
+**TASK-008 总结**：
+- 打通**前后端分离项目的登录鉴权闭环**：登录 → token 持久化 → 请求自动携带令牌 → 全局登录态 → 路由守卫 → 登出/失效；
+- 掌握 **JWT 与 Session 的本质差异**（有状态 vs 无状态；`JSESSIONID` 浏览器自动带 vs `Bearer token` 前端手动带）；
+- 用 `AuthContext` + `useContext` 实现**全局登录态共享**（对应后端 `SecurityContextHolder`，解决 Prop Drilling），并理解了 **Provider 只能影响子树** 的作用域边界（Q-RC-13）；
+- 掌握**启动恢复登录态的三态建模**：`initializing` 初值必须为 `true`（“未知”≠“未登录”），否则刷新页面会把已登录用户踢出；
+- 完成 `ProtectedRoute` 三态分流守卫（对应 `OncePerRequestFilter`），并明确了**前端守卫只是体验、后端才是安全边界**；
+- 修复了“未 `await` 登出就跳转”导致的**跳转乒乓**，并把 `logout` 契约诚实化为 `Promise<void>`；
+- 完成导航栏与登录态联动（`AppHeader` 作为 Provider 子组件）、登录页三态与错误中文提示、ProfilePage 登出与 401 演练；
+- 类型现代性修正：事件类型改用 `React.SubmitEvent<HTMLFormElement>`（React 19 已弃用 `FormEvent`）。
 
 **TASK-007 总结**：
 - 搭出**四层前端请求架构**：`httpClient`（基础设施）→ `userApi`（Repository）→ `usePagedUsers`（Service/Hook）→ `UserPagedList` + `Pagination`（View），与 Spring Boot 分层一一对应；
@@ -33,9 +45,9 @@
 - 洞悉了动态路由 `:id` 底层正则命名捕获组的解析机制，彻底融会贯通了与 Spring Boot `@PathVariable` 的底层一致性；
 - 熟练运用 `useParams<{ id: string }>()` 安全提取路径参数、`useNavigate()` 编程式导航回退，以及 `<NavLink>` 动态 `isActive` 菜单高亮。
 
-**下一步进行中**：**TASK-008「JWT 登录认证与路由守卫」**（阶段 8 第二关，工作区 `src/exercises/TASK-008-auth-guard/`，TODO ①~⑦ 已就位）。
-后端已新增认证接口：`POST /api/auth/login`（演示账号 admin/admin123、guest/guest123）、`GET /api/auth/me`（401 可测）、`POST /api/auth/logout`（制造 token 失效场景）。
-TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `Authorization` 插槽、响应拦截器里预留的 401 分支位置。
+**下一步进行中**：**TASK-009「全栈中后台综合收口」**（阶段 8 终极关，工作区 `src/exercises/TASK-009-admin-console/`）。将把 TASK-001~008 的成果串成一个完整的中后台应用：登录 → 仪表盘 → 用户 CRUD（分页/搜索/新增/编辑/删除+末页回退）→ 角色鉴权 → 全局 401 → 防抖与请求取消 → 生产构建与部署。
+
+**TASK-008 已提供的现成基础**：`AuthProvider` / `useAuth` / `ProtectedRoute` / `AppHeader` / `TOKEN_KEY` / `httpClient` 拦截器体系 / 分页 Hook `usePagedUsers`。
 
 ---
 
@@ -60,7 +72,7 @@ TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `
 | **阶段 5** | **副作用与生命周期 (useEffect)** | 掌握数据请求、定时器清理、依赖项数组机制 | ✅ 阶段通关（TASK-004 通关） |
 | **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | ✅ 阶段通关（TASK-005 通关） |
 | **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | ✅ 阶段通关（TASK-006 通关） |
-| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | 🟡 进行中（TASK-007 通关，TASK-008 进行中） |
+| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | 🟡 进行中（TASK-007/008 通关，TASK-009 进行中） |
 
 ---
 
@@ -108,6 +120,16 @@ TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `
 - [x] **`useEffect` 时序心智**：effect 在渲染提交后执行 → 首帧只能读到 state 初始值（挂载即请求的页面 `loading` 初值必须为 `true`）
 - [x] **JSX 事件传参判据**：「括号即调用，引用才传递」——`onClick={fn(arg)}` / `onClick={fn}` / `onClick={() => fn(arg)}` 三态取舍
 - [x] **调试日志生产治理**：`import.meta.env.DEV` 包裹，避免构建包输出请求细节；配置项抽常量化（`TOKEN_KEY`）
+- [x] **JWT 与 Session 的差异认知**：无状态令牌 vs 服务端会话；`Authorization: Bearer` 需前端手动携带（拦截器职责）
+- [x] **token 生命周期三件套**：存（`tokenStore` + `TOKEN_KEY` 单一来源）、带（请求拦截器自动注入）、判（路由守卫）
+- [x] **全局登录态（Context）**：`createContext` / `useContext` / `useAuth()` 越界报错；解决 Prop Drilling（⇄ `SecurityContextHolder`）；**Provider 只能影响子树**（提供者不能自消费）
+- [x] **登录态启动恢复与三态建模**：`initializing` 初值必须为 `true`（“未知”≠“未登录”），避免刷新页面踢掉已登录用户
+- [x] **受保护路由守则**：`ProtectedRoute` 三态分流 + `<Navigate replace>`（防后退死循环）⇄ `OncePerRequestFilter`；**前端守卫≠安全边界**
+- [x] **登出时序与契约诚实性**：`await logout()` 后才 `navigate`（否则跳转乒乓）；契约写 `Promise<void>` 而非 `void`
+- [x] **登录表单交付**：受控表单 + `preventDefault` + `submitting` 防连点 + 后端中文错误直显 + 成功 `navigate(replace)`
+- [x] **导航栏与登录态联动**：入口可见性（登录后才显示受保护入口）与路由可达性分离对齐
+- [x] **React 19 事件类型现代化**：提交用 `React.SubmitEvent<HTMLFormElement>`（`FormEvent` 已弃用）；未启用的类型类型与实例元素类型参数化
+- [x] **“双决策者/双写入者”陷阱总结**：`Authorization` 头、页码权威、登出导航、访问规则分层 —— 同一件决策必须有明确 owner
 
 ---
 
@@ -117,15 +139,14 @@ TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `
   - [ ] `interface` 属性定义（可选 `?`、只读 `readonly`）
   - [ ] `interface` 与 `type` 的区别与取舍
   - [ ] 联合类型 (`|`) 与 字面量类型
-- [ ] **阶段 8 · TASK-008 进行中（JWT 登录认证 + 路由守卫）**：
-  - [ ] token 持久化封装 `tokenStore`（save/read/clear，统一用 `TOKEN_KEY`）
-  - [ ] 认证接口层 `authApi`：`loginApi` / `fetchMeApi` / `logoutApi`
-  - [ ] `AuthProvider`：`user` + `initializing` 三态、启动时用 token 恢复登录态、`login` 先存 token 再更新用户、`logout` 清空
-  - [ ] `AuthContext` + `useAuth()`：`createContext` / `useContext`，越界使用显式报错
-  - [ ] 登录页：受控表单 + `preventDefault` + `submitting` 禁用 + 错误中文提示 + 成功后跳转
-  - [ ] `ProtectedRoute` 路由守卫：`initializing` 显示校验中、未登录 `<Navigate replace>`、已登录放行（对照 Spring Security `OncePerRequestFilter`）
-  - [ ] 登录态持久化验证：刷新浏览器不被踢回登录页
-  - [ ] 401 失效链路实测（用 `POST /api/auth/logout` 制造失效）
+- [ ] **阶段 8 · TASK-009 进行中（全栈中后台综合收口）**：
+  - [ ] 工程化目录升级：把 http 层 / auth 层从练习目录提升为 `src/api`、`src/auth`（真实工程位置）
+  - [ ] 用户 CRUD 闭环：分页列表 + 搜索 → 新增 → 编辑 → 删除（含**末页被删空自动回退**）→ 详情
+  - [ ] 角色鉴权：`GUEST` 不能删改（前端隐藏入口 + 后端 `ADMIN` 强制校验）
+  - [ ] **全局 401 处理**：拦截器广播 → React 世界清 token 并跳登录（含回跳原页面）
+  - [ ] 搜索防抖（debounce）+ `AbortController` 真正取消在途请求
+  - [ ] 生产构建与部署：`npm run build` + `npm run preview`，Nginx 静态托管与 `location /api` 反代配置样例
+  - [ ] 综合验收：全链路回归 + 终审 + 口试
 - [ ] **阶段 8 · TASK-009（全栈综合项目收口）**：
   - [ ] 登录 → 分页列表 → 详情 → 增删 → 404 全链路串成中后台
   - [ ] 进阶项：删除后末页页码自动回退、搜索防抖、`AbortController` 真正取消在途请求
@@ -154,3 +175,13 @@ TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `
 15. `onClick={() => onPageChange(page + 1)}` 为什么不能写成 `onClick={onPageChange(page + 1)}`？（详见 `docx/questions/react-core.md` Q-RC-09）
 16. 为什么 `loading` 初始值必须是 `true`？`useEffect` 与渲染提交的时序关系是什么？（详见 `docx/questions/hooks.md` Q-HK-06）
 17. 分页场景下「页码」的权威来源到底是本地 state 还是后端返回的 `page`？（详见 `docx/questions/api-and-router.md` Q-AR-09）
+18. `useEffect` 到底是什么？为什么它不是“生命周期钩子”而是“同步器”？（详见 `docx/questions/hooks.md` Q-HK-07）
+19. `import { TOKEN_KEY }` 只是引用常量吗？为什么它会顺带执行被导入模块的顶层代码？（详见 `docx/questions/typescript.md` Q-TS-07）
+20. axios 的 `{ params }` 与直接传的 `cmd`（请求体）有什么区别？为什么 `get` 和 `post` 的签名不同？（详见 `docx/questions/api-and-router.md` Q-AR-10）
+21. JS 里的 `{ }` 到底有几种含义？为什么不能在对象字面量里写 `const`，Hook 为什么必须写在顶层？（详见 `docx/questions/typescript.md` Q-TS-08）
+22. `React.FC<{ children: React.ReactNode }> = ({ children })` 这行声明如何拆解？`React.FC` 的本质是什么？（详见 `docx/questions/react-core.md` Q-RC-10）
+23. `{ user, initializing, login, logout }` 为什么不写冒号也能用？`const value: AuthContextValue = ...` 的注解到底在检查什么？（详见 `docx/questions/typescript.md` Q-TS-09）
+24. `<AuthContext.Provider value={value}>{children}</AuthContext.Provider>` 在干什么？为什么必须把 `children` 渲染出来？（详见 `docx/questions/react-core.md` Q-RC-11）
+25. 表单提交/输入事件该用什么类型？`React.FormEvent` 为什么在 React 19 类型里被弃用（TS6385）？怎么自己查？（详见 `docx/questions/react-core.md` Q-RC-12）
+26. `/login` 没用 `ProtectedRoute` 包裹，为什么登录后还是进不去？前端“两层拦截”分别在哪？（详见 `docx/questions/api-and-router.md` Q-AR-11）
+27. `<AuthProvider>` 所在的组件（AuthApp）为什么不能自己用 `useAuth()`？作用域从哪里开始？（详见 `docx/questions/react-core.md` Q-RC-13）

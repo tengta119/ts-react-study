@@ -7,6 +7,7 @@ import { UserManager } from './exercises/TASK-005-refactor-hook/UserManager';
 import { RouterApp } from './exercises/TASK-006-router/RouterApp';
 import { UserPagedList } from './exercises/TASK-007-http-layer/UserPagedList';
 import { AuthApp } from './exercises/TASK-008-auth-guard/AuthApp';
+import { AdminApp } from './exercises/TASK-009-admin-console/AdminApp';
 
 type TaskId =
   | 'overview'
@@ -17,7 +18,8 @@ type TaskId =
   | 'manager'
   | 'router'
   | 'paged'
-  | 'auth';
+  | 'auth'
+  | 'admin';
 
 interface TaskMeta {
   id: TaskId;
@@ -29,7 +31,7 @@ interface TaskMeta {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TaskId>('auth');
+  const [activeTab, setActiveTab] = useState<TaskId>('admin');
 
   const tasks: TaskMeta[] = [
     {
@@ -95,6 +97,14 @@ export function App() {
       component: <AuthApp />,
       description: 'JWT 登录态持久化、AuthContext 全局共享、ProtectedRoute 守卫与 401 全局处理。',
       filePath: 'src/exercises/TASK-008-auth-guard/',
+    },
+    {
+      id: 'admin',
+      name: 'TASK-009 管理控制台',
+      badge: 'CRUD & 角色鉴权',
+      component: <AdminApp />,
+      description: '全栈中后台收口：用户 CRUD、角色鉴权、全局 401、防抖与请求取消、生产构建部署。',
+      filePath: 'src/exercises/TASK-009-admin-console/',
     },
     {
       id: 'overview',

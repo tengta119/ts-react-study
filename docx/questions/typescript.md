@@ -122,5 +122,100 @@
   ```
 - **掌握标记**：[ ] 待主动回忆
 
+---
 
+### Q-TS-07: `import { TOKEN_KEY }` 只是“引用一个常量”吗？会不会顺带执行被导入模块的代码？
+- **提问背景**：`tokenStore.ts` 里为了用 `TOKEN_KEY`，从 TASK-007 的 `httpClient.ts` 导入了一个常量。既然只是一个字符串常量，为何感觉像“把整个 axios 配置都带进来了”？
+- **核心解答 (Answer)**：
+  - **JS/TS 的模块是“执行单元”，不是“声明清单”**：`import` 语句会在首次导入时**执行被导入模块的整个顶层代码**——包括 `axios.create(...)`、`interceptors.request.use(...)`、`interceptors.response.use(...)`。这些副作用只执行一次（模块级缓存），后续导入直接复用缓存结果。
+  - **这意味着“导入 = 建立依赖 + 执行一次”**，所以把常量放在一个有副作用的模块里，会附带那份副作用（本任务恰好无害且正好需要：拦截器被注册上了）。
+  - **工程建议**：把“纯常量/纯类型”拆到无副作用的独立文件（如 `constants.ts`），可避免无意中的副作用与循环依赖；本任务为了让你看出这个机制，故意把 `TOKEN_KEY` 与 `httpClient` 放在一起。
+- **Java / 后端对照视角 (Java Mapping)**：
+  - Java 的 `import` 是**纯编译期语法糖**，本身不加载任何类；类初始化（静态块）发生在**首次真正使用**该类时（懒加载）；
+  - JS 的 `import` 则相当于“**声明依赖 同时触发一次模块求值**”，更接近 Java 里 `Class.forName(...)` 强制初始化的效果；
+  - 所以 Java 里“多写几个 import 不花钱”的直觉，在 JS 里不成立——导入即执行，副作用是无法避免的。
+- **极简代码示范 (Code Demo)**：
+  ```ts
+  // httpClient.ts（顶层有副作用：建实例 + 注册拦截器）
+  export const httpClient = axios.create({ baseURL: '/api' });
+  httpClient.interceptors.request.use(...);   // ← 模块被求值时就会执行
+  export const TOKEN_KEY = 'token';
 
+  // tokenStore.ts
+  import { TOKEN_KEY } from '../TASK-007-http-layer/httpClient';
+  // 后果：axios 实例与两个拦截器此刻也已被创建并注册（本任务恰好是我们想要的）
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-TS-08: JS 里的 `{ }` 到底有几种含义？为什么不能在对象字面量里写 `const` 声明？
+- **提问背景**：在 `AuthProvider` 里把 `const [user, setUser] = useState(...)` 写进了返回给 Provider 的**对象字面量**里，得到 `TS1005: ':' expected`。
+- **核心解答 (Answer)**：
+  - **`{}` 的含义完全由它出现的位置决定**：
+    | 出现位置 | 含义 | 能放什么 |
+    | :--- | :--- | :--- |
+    | **表达式位置**：`= { }`、`return {}`、`({})`、`f({})`、`() => ({})` | **对象字面量** | 只能写 `key: value` 属性（表达式）|
+    | **语句位置**：函数体、`if/for` 的块、单独一行 `{ }` | **块语句（block）** | 可以写任意语句/声明 |
+  - **语言分层规则：语句（statement）> 表达式（expression）** —— 表达式可以嵌在语句内部，反之绝不可以。“`const x = ...` 是声明语句”，因此无法出现在对象字面量（表达式）里。
+  - **经典衍生坑**：`const f = () => { a: 1 };` 不会返回对象！箭头的 `{}` 在这里是**函数体（语句位置）**，于是 `a:` 被当成 **label（标签）**，函数实际返回 `undefined`。想返回对象必须包一层括号：`() => ({ a: 1 })`。
+  - **React 的额外约束（Rules of Hooks）**：`useState` / `useEffect` 等 Hook 必须写在组件或自定义 Hook 的**函数体顶层**，不能放在条件、循环、回调、对象字面量内。原因是 React 靠“**每次渲染时 Hook 的调用顺序**”把 state 与各个 Hook 依次对应——位置一变，对应关系就乱。（这也是 ESLint 的 `react-hooks/rules-of-hooks` 规则在监控的事）
+- **Java / 后端对照视角 (Java Mapping)**：
+  - Java 同样禁止“在表达式里写语句”：`Map m = { put("a", 1); };` 直接编译失败；
+  - 但 Java 的**类体**（字段声明 + 实例初始化块 + 构造器）确实是一个“可写声明/语句的区域”，容易让人把 JS 的 `{}` 类比成“可写代码的块”——而在 JS 里，它是否是块完全取决于位置；
+  - 对照两边的 lambda：Java `() -> { ...; }` 的 `{}` 是**方法体（可写语句）**；JS 箭头函数 `() => {}` 也是**函数体**；但对象字面量 `{}` 则对应 Java 的 `Map.of(...)` / 匿名内部类的字段初始化——**它只装值，不装语句**。
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // ❌ 语句塞进表达式
+  const value = { const [a] = useState(0); };
+
+  // ✅ 先声明，再组装
+  const [a] = useState(0);
+  const value = { a };
+
+  // ⚠️ 箭头函数返回对象的坑
+  const wrong = () => { a: 1 };      // 返回 undefined（a: 是 label）
+  const right = () => ({ a: 1 });    // 返回 { a: 1 }
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-TS-09: `const value: AuthContextValue = { user, initializing, login, logout }` 是什么意思？花括号里为什么不写“冒号”？
+- **提问背景**：刚学会“对象字面量要写 `key: value`”，转头就看到花括号里只有几个名字，没有冒号，居然也能跑。
+- **核心解答 (Answer)**：
+  - **`{ user, initializing, login, logout }` 是 ES6 的“属性简写（Shorthand Property）”**，它严格等价于：
+    ```ts
+    { user: user, initializing: initializing, login: login, logout: logout }
+    ```
+    规则：**当“变量名”与“想要的属性名”完全一致时**，可以把 `name: name` 简写成 `name`。
+  - **什么时候不能简写**：想改名就必须写全：`{ data: users }`（属性叫 `data`，值来自变量 `users`）——你在 TASK-005 的解构别名里已经用过这个反向技巧。
+  - **`: AuthContextValue` 的作用有两层**（这行代码里最容易被低估的部分）：
+    1. **结构校验（契约防线）**：TS 会检查右侧对象是否满足该类型——缺字段、多字段、字段类型不匹配都会报错。（你上一版 `value` 里只写了 `login`/`logout` 两个字段，编译器就会报缺 `user` 与 `initializing`。）
+    2. **上下文类型推导**：如果把这个对象直接写在 JSX 里（或 value 里放内联箭头函数），函数参数的类型会**自动推导**，无需手写注解：
+       ```tsx
+       const value: AuthContextValue = {
+         user, initializing,
+         login: async (cmd) => { ... }, // cmd 自动推导为 LoginCommand
+       };
+       ```
+  - **为什么先赋给具名变量、而不直接写进 JSX**：`<AuthContext.Provider value={ {user, ...} }>` 语法上合法（注意要加括号），但具名常量更易读、便于打断点/`console.log` 调试，也为将来用 `useMemo` 缓存留了位置。
+  - **这里体现的是 TypeScript 的结构化类型（鸭子类型）**：这个对象里**没有 `implements AuthContextValue`、没有构造器**，只要“形状匹配”就算合法——与 Java 名义类型形成鲜明对比（详见 Q-TS-01）。
+- **Java / 后端对照视角 (Java Mapping)**：
+  | TS | Java |
+  | :--- | :--- |
+  | `const value: AuthContextValue = { ... }` | `AuthContextValue value = ...;`（**声明类型一样参与编译期校验**）|
+  | 对象字面量 `{ ... }` | 必须 `new AuthContextValue(...)` / Builder / `Map.of(...)` |
+  | 属性简写 `{ user }` | **无等价物**：`Map.of("user", user)` 必须把名字写两遍 |
+  - **关键差异**：Java 的“变量声明类型”只负责名义校验，值必须先构造出来；TS 直接用心字面量 + 结构匹配，类型注解只是给编译器看的一份声明。
+- **极简代码示范 (Code Demo)**：
+  ```ts
+  const user = 'tom';
+  const age = 20;
+
+  const a = { user, age };        // ✅ 简写 → { user: 'tom', age: 20 }
+  const b = { user, age: 20 };    // ✅ 混用也可
+  const c = { name: user };       // ✅ 改名：必须写全
+  // const d = { user: u };       // ❌ u 未定义（顺便演示：这里右值必须是已存在的变量）
+  ```
+- **掌握标记**：[ ] 待主动回忆

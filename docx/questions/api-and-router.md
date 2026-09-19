@@ -189,6 +189,60 @@
 
 ---
 
+### Q-AR-10: axios 的 `{ params }` 与直接传的 `cmd` 有什么区别？`params` 不也是个对象吗？
+- **提问背景**：TASK-007 里写 `httpClient.get(url, { params })`，TASK-008 里写 `httpClient.post(url, cmd)`。两者都是“传个对象”，看起来差不多，很像是同一个东西的两种写法。
+- **核心解答 (Answer)**：
+  - **它们不在同一层级**：
+    - `{ params }` 是**配置对象（config）里的一个字段名**（ES6 简写，等价于 `{ params: params }`）——它描述的是“**把这份数据拼到 URL 的问号后面**”；
+    - `cmd` 是**请求体（data / body）本身**——它描述的是“**这份数据放在 HTTP 报文的主体里**”。
+  - **根本原因：axios 的方法签名不对称，而这来自 HTTP 协议本身的不对称**：
+    ```ts
+    httpClient.get(url, config)              // GET 没有语义上的 body → 第二个参数就是 config
+    httpClient.delete(url, config)
+    httpClient.post(url, data, config)       // POST/PUT/PATCH 有 body → data 占第二个位置，config 退到第三个
+    httpClient.put(url, data, config)
+    ```
+    所以 `get` 的第二个参数位与 `post` 的第二个参数位**根本不是同一个东西**。
+  - **四种写法对比（请记住这四个“对/错”）**：
+    ```ts
+    httpClient.get('/users/page', { params });      // ✅ query：?page=1&size=5
+    httpClient.post('/auth/login', cmd);            // ✅ body：JSON 请求体
+    httpClient.post('/auth/login', { params: cmd }); // ❌ 变成 ?username=...&password=...，请求体为空 → 后端报“缺少字段”
+    httpClient.get('/users', cmd);                  // ❌ GET 没有 data 位置，cmd 会被当成 config → 参数丢失
+    ```
+  - **五个可观测差异**：
+    | 维度 | `params`（查询参数） | body（请求体） |
+    | :--- | :--- | :--- |
+    | 在 HTTP 报文里的位置 | 请求行 URL 的 `?` 后面 | 报文主体（body） |
+    | axios 序列化方式 | 扁平成 `k=v&k2=v2`（`undefined` 自动忽略、自动 URL 编码）| 默认 `JSON.stringify`（配合 `Content-Type: application/json`）|
+    | 后端接收方式 | `@RequestParam` / FastAPI `Query(...)` | `@RequestBody` / FastAPI 的 Pydantic 模型参数 |
+    | 能携带嵌套结构吗 | ❌ 只能扁平键值 | ✅ 任意层级嵌套 JSON |
+    | 长度与安全 | 有长度限制；**会进浏览器历史、服务器访问日志、Referer** | 无长度限制；不进 URL 日志 |
+  - **实战排查技巧**：打开浏览器 Network 面板 → 点开请求 → 看 **Query String Parameters**（params）与 **Request Payload / Payload**（body）两个分组到底哪个有数据。传错位置时一眼可辨。
+  - **安全红线**：**密码、token 绝不能放 query**（会写进 URL → 服务器日志 / 浏览器历史 / Referer 泄霞）。这就是登录必须用 `POST` + body 的原因。
+  - **同一请求可以两者都有**：`httpClient.post('/users', body, { params: { dryRun: true } })` —— body 装数据，query 装开关/标记（如 `?delay=1.5` 这类调试参数就是典型的 query 用法）。
+- **Java / 后端对照视角 (Java Mapping)**：
+  | axios | Spring Boot |
+  | :--- | :--- |
+  | `{ params }` | `UriComponentsBuilder.queryParam("page", 1)` / Feign 的 `@RequestParam` |
+  | `cmd`（body）| `@RequestBody LoginCommand cmd` / `RestTemplate.postForObject(url, body, ...)` |
+  | `config`（timeout / headers / signal）| Apache HttpClient 的 `RequestConfig`、OkHttp 的 per-call options |
+  - 一个关键提醒：Java 里这两个东西的命名完全不同（`@RequestParam` vs `@RequestBody`），语义差异一目了然；而 JS 里两者都是“一个对象字面量”，长得几乎一样 —— **语法上的相似掩盖了协议语义上的不同**，这也是为什么这里必须靠人为记忆与工具（Network 面板）兵底。
+- **极简代码示范 (Code Demo)**：
+  ```ts
+  // TASK-007：查询参数（分页）—— 对应 Java @RequestParam
+  const res = await httpClient.get<PageResult<ApiUser>>('/users/page', { params });
+
+  // TASK-008：请求体（登录）—— 对应 Java @RequestBody，必顶 POST
+  const login = await httpClient.post<LoginResult>('/auth/login', cmd);
+
+  // 进阶：config 里可以同时带多个字段（params / timeout / signal 各司其职）
+  httpClient.get('/users/page', { params, timeout: 3000, signal: controller.signal });
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
 ### Q-AR-07: `Promise.reject()` 到底有什么用？为什么拦截器里必须用它而不能 `return error`？
 - **提问背景**：在写 axios 响应拦截器的失败分支时，被要求必须 `return Promise.reject(new Error(...))`，感觉“直接抛错或直接把错误对象还回去”不就完了吗？
 - **核心解答 (Answer)**：
@@ -212,6 +266,54 @@
   fetchData()
     .catch((err) => Promise.reject(new Error(`归一化失败: ${err.message}`))) // ✅ 链继续失败
     .catch((err) => '兜底数据'); // ✅ 返回普通值 = 把失败“治愈”成成功
+  ```
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-AR-11: `/login` 没有用 `ProtectedRoute` 包裹，为什么登录后还是进不去？
+- **提问背景**：路由表里 `<Route path="/login" element={<LoginPage />} />` 是裸的（没有任何守卫），但登录成功后再访问 `/login`，地址栏会立刻跳回 `/profile`，看起来“像被守卫拦了”。
+- **核心解答 (Answer)**：
+  - **前端有“两层”拦截机制，它们彼此独立**：
+    | 层次 | 实现位置 | 作用范围 | 本任务例子 |
+    | :--- | :--- | :--- | :--- |
+    | **① 路由级守卫** | 路由表的 `element` 外面包一层组件 | 该 path 下**所有**页面 | `<ProtectedRoute><ProfilePage /></ProtectedRoute>` |
+    | **② 组件级自我守卫** | 页面组件内部提前 `return <Navigate …/>` | 仅这一个组件 | `LoginPage.tsx` 里的 `if (user !== null) return <Navigate to="/profile" replace />` |
+  - **本例命中的是第 ② 种**：`/login` 路径确实没有任何守卫拦截（`ProtectedRoute` 不参与），但 `LoginPage` 自己发现“已经登录了”，于是主动把人送回 `/profile`。
+    > 排查方法：全局搜索重定向决策点 —— `grep -n "Navigate\|navigate(" src/exercises/TASK-008-auth-guard`。本次输出里 `LoginPage.tsx:38` 就是肇事者。
+  - **`<Navigate>` 的语义**：它是**声明式重定向组件**——你并不是“手动调了一次跳转”，而是“在渲染结果里声明：本次渲染应当导航到 X”。它在挂载/渲染时执行导航；配 `replace` 就是**替换**当前历史条目而不是压栈。
+  - **两种机制各自的价值**：
+    - 路由级守卫：**规则集中**易审查（整个路由表一眼看完哪些路径要登录），适合“批量保护”；
+    - 组件级守卫：适合**只与该组件强相关**的条件（如“已登录就不该看登录页”），但规则散落在组件里，**多个地方同时决定导航时很难排查**。
+  - **排查“到底是谁把我重定向了”的三步法**：
+    1. **静态搜**：列出全部 `Navigate` / `navigate(` 调用点（决策点总量通常很小）；
+    2. **动态判**：在可疑组件顶部临时 `console.log('render LoginPage', user)`：若它根本没打印，说明是路由级拦截；若打印了又立刻跳走，就是组件内部重定向；
+    3. **React DevTools**：看组件树里到底挂载了哪个页面组件（路由未匹配时根本不会挂载）。
+       ⚠️ Network 面板与浏览历史都看不出“是谁跳的”——**它们只记录结果，不记录决策者**。
+  - **工程建议（更一致的写法）**：把“未登录才能进”的表达也搬到路由表，用一个反向守卫：
+    ```tsx
+    <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
+    ```
+    让**访问规则集中在路由表**，而不是一部分在路由表、一部分藏在页面里。
+  - **业务取舍**：若产品要求“已登录也能进登录页用于切换账号”，就把这个重定向去掉，改为在登录页提供“切换账号”按钮（先 `logout()` 再展示表单）——**规则要可选，但必须是有意识的决定**，不能因为“不知道哪里跳的”而留着一个黑盒行为。
+  - 📌 这是本任务“**导航决策必须有单一 owner**”主题的第 4 次出现（前三次：`Authorization` 头双写入、页码双权威、登出后双导航）。
+- **Java / 后端对照视角 (Java Mapping)**：
+  | 前端 | Spring Security / MVC |
+  | :--- | :--- |
+  | 路由表 + `ProtectedRoute` / `PublicOnlyRoute` | `SecurityFilterChain` 里的 `authorizeHttpRequests()` 集中配置（`permitAll()` / `authenticated()`）|
+  | 页面组件内部 `if (user) return <Navigate/>` | 在 Controller 方法里手写 `if (!hasRole("ADMIN")) return redirect(...)` / `@PreAuthorize` |
+  - 两种方式都能用，但**集中配置的优势在于“一眼能审出全局策略”**；散在方法里的条件越多，越容易出现“某个接口忘记加校验”。
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // ① 路由级：保护“需要登录”的页面
+  <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+
+  // ② 路由级（反向）：保护“仅未登录可见”的页面（把 LoginPage 里的判断搬出来）
+  function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+    const { user, initializing } = useAuth();
+    if (initializing) return <div>正在校验登录态…</div>;
+    return user === null ? <>{children}</> : <Navigate to="/profile" replace />;
+  }
   ```
 - **掌握标记**：[ ] 待主动回忆
 

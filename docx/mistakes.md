@@ -270,6 +270,37 @@
 
 ---
 
+### [2026-09-17] 同一个契约字符串散落多处（魔法值）：已有 `TOKEN_KEY` 常量却硬写 `"token"`
+- **错误现象**：
+  ```ts
+  // tokenStore.ts —— 写入端
+  localStorage.setItem("token", token);
+  // httpClient.ts —— 读取端（已用常量）
+  const token = localStorage.getItem(TOKEN_KEY);
+  ```
+  两边当前值碰巧相同（都是 `'token'`），所以功能正常，**编译与 eslint 全绿 —— 缺陷完全隐形**。
+- **Java 思维惯性**：
+  Java 里 `static final String TOKEN_KEY = "token";` 几乎是肌肉记忆，但**为什么**要这样？多数人的真实理由是“项目规范这么写”，而不是“不写就会出事”。于是在 JS 里看到“常量与字符串当下等价”就会懒得抽——毕竟跑起来没任何区别。
+- **底层根因**：
+  1. **字符串字面量没有校验**：无论是 Java 还是 TS，拼错 `"toke"` 都不会报编译错，只能靠“只有一个地方写它”来消除风险。**常量的价值不在类型安全，而在单一来源（Single Source of Truth）**；
+  2. **耦合是隐式的**：写入端与读取端通过一个字符串**隐式约定**关联，调用链上看不出依赖关系（不像函数调用有引用可跳转），**重命名重构无法自动传播**；
+  3. **失效场景的排查成本极高**：若未来要把键名改成 `access_token`（例如同时支持 refresh_token），只改一处 → 登录成功但**所有后续请求依然 401**，前后端日志都看不到异常，很容易误判为“JWT 配置错”。
+- **正确做法**：
+  ```ts
+  // httpClient.ts（写入方与读取方共用）
+  export const TOKEN_KEY = 'token';
+
+  // tokenStore.ts
+  import { TOKEN_KEY } from '../TASK-007-http-layer/httpClient';
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.getItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  ```
+- **避坑口诀**：
+  **“契约字符串不散落，写入读取共一个常量；碰巧相等最危险，改一处就静默 401。”**
+
+---
+
 ### [2026-09-17] 用模板字符串插值打印对象，得到 `[object Object]`（信息全丢）
 - **错误现象**：
   ```ts
@@ -296,3 +327,254 @@
   ```
 - **避坑口诀**：
   **“对象莫进模板串，toString 抹一切；多参打印留引用，要看字段别拼接。”**
+
+---
+
+### [2026-09-17] 在 Repository 层写业务副作用（分层越界）：`loginApi` 里调了 `saveToken`
+- **错误现象**：
+  ```ts
+  // authApi.ts —— 名义上是“认证接口层（Repository）”
+  export async function loginApi(cmd: LoginCommand): Promise<LoginResult> {
+    const res = await httpClient.post('/auth/login', cmd);
+    saveToken(res.data.token);   // ❌ 持久化副作用混进了数据访问层
+    return res.data;
+  }
+  ```
+  编译、eslint、运行全部正常 —— **今天完全看不出问题**。
+- **Java 思维惯性**：
+  在后端写“登录接口”时，习惯在一个 `AuthServiceImpl.login()` 里一气完成“校验密码 → 签发 token → 写入 Redis/Session → 返回 VO”。前端的分层粒度比后端 Controller/Service 更细，但习惯会把“一整块业务”塑到一个函数里，于是顺手在 `authApi` 里把 token 存了。
+  参考：**你绝不会在 `UserRepository.findByUsername()` 里顺手写 `SecurityContextHolder.setAuthentication(...)`** —— 那是认证编排层的职责。
+- **底层根因**：
+  1. **职责边界靠约定维持，编译器不管**：Repository 层的契约是“URL + 参数 + 拆 `.data`”，不含任何状态写入（无论是 React state 还是 localStorage）；
+  2. **产生了第二个“写入者”**：按任务设计，`AuthProvider.login()`（TODO ③）也必须 `saveToken(...)`。现在职责模糊 → 将来一旦有“只校验不登录”的场景（修改密码前验旧密码、管理员代查账号），会**误把 token 覆盖掉**；
+  3. **副作用使函数不可重放**：调用链上任何人调一下 `loginApi` 都会静默改变全局登录态，违背了“纯函数容易被推理与测试”的工程原则。
+- **正确做法**：
+  ```ts
+  // authApi.ts：只负责“取数据”，保持纯净
+  export async function loginApi(cmd: LoginCommand): Promise<LoginResult> {
+    const res = await httpClient.post<LoginResult>('/auth/login', cmd);
+    return res.data;
+  }
+
+  // AuthProvider.tsx（TODO ③）：由编排层决定“登录成功后要写 token + 更新用户”
+  const result = await loginApi(cmd);
+  saveToken(result.token);
+  setUser(result.user);
+  ```
+- **避坑口诀**：
+  **“Repository 只取数，写入交编排层；一个职责一个主，合成一块没人管。”**
+
+---
+
+### [2026-09-17] 忘记给 axios 方法传泛型 → `res.data` 静默变成 `any`
+- **错误现象**：
+  ```ts
+  const res = await httpClient.post("/auth/login", cmd); // ❌ 没写 <LoginResult>
+  return res.data;                                        // res.data 的类型是 any
+  ```
+  `tsc` 与 `eslint` 全绿，运行时也完全正常，但**类型保护已经失效**。
+- **Java 思维惯性**：
+  Java 里 `LoginResult vo = restTemplate.postForObject(url, cmd, LoginResult.class)` —— 类型是**作为参数显式传进去的**，不传就编译不过（泛型方法推导也会要求你指定）。而 TS 的泛型可以是**可选**的，不传时静默退化为 `any`，编译器不会提醒你——**“不写”和“写错”在这里长得一模一样**。
+- **底层根因**：
+  1. axios 的签名是 `post<T = any, R = AxiosResponse<T>, D = any>(url, data?, config?)` —— **`T` 有默认值 `any`**；
+  2. `any` 具有“传染性”：它可以赋给任何类型（包括函数声明的 `Promise<LoginResult>`），所以返回值注解反而**掩盖**了丢失的类型信息；
+  3. 本项目 `tsconfig` 未开 `strict`/`noImplicitAny`，因此连“隐式 any”都不会提醒——三重保险全部失效。
+- **正确做法**：把泛型当作“对后端契约的声明”顺手写上：
+  ```ts
+  const res = await httpClient.get<PageResult<ApiUser>>('/users/page', { params });
+  const res = await httpClient.post<LoginResult>('/auth/login', cmd);
+  const res = await httpClient.get<AuthUser>('/auth/me');
+  ```
+  效果：后端字段改名（`token` → `accessToken`）时，TS 会在**编译期**报错，而不是等运行时白屏。
+- **避坑口诀**：
+  **“axios 泛型有默认值，不写就是 any；契约声明带一笔，字段改名早报错。”**
+
+---
+
+### [2026-09-17] 手工重复实现基础设施已提供的职责：在 Repository 里手动拼 `Authorization` 头
+- **错误现象**：
+  ```ts
+  export async function fetchMeApi(): Promise<AuthUser> {
+    const res = await httpClient.post<AuthUser>("/auth/me", {
+      "Authorization": "Bearer" + readToken()      // ❌ ① 方法错 ② 位置错
+    });
+    return res.data;
+  }
+  ```
+  这里叠加了两个错误：
+  1. 接口是 GET，却发了 POST → **实测 `HTTP 405 Method Not Allowed`**；
+  2. 把“配置对象”塞进了 `post` 的**第二参数** —— 但 `post(url, data, config)` 的第二个位置是**请求体**，配置在第三个位置。所以这个对象会变成 JSON body，**头根本没被设置**（若改成 `get`，它落在 config 位置，而 config 里该字段名应为 `headers`，`Authorization` 会被 axios **静默忽略**）。
+  另外实测：若真的发出格式错误的头（如 `Authorization: Bearernull`，缺空格）→ **HTTP 401 「未提供有效的 Authorization 头」**（报错语义还会误导排查方向）。
+- **Java 思维惯性**：
+  写 `RestTemplate` / `HttpClient` 时，每个调用都要自己 `headers.setBearerAuth(token)`，或者写一个 `ClientHttpRequestInterceptor`。Java 开发者对“显式装配请求”很熟悉，于是看到参数就顺手拼头；但在本项目里，**这个职责已经在 TASK-007 交付给拦截器了**。
+- **底层根因**：
+  1. **双写入者（Two Writers）**：同一个请求头被两个地方写 → 最终值取决于执行顺序（拦截器在请求发出前统一 `set`，会覆盖业务代码里的值）；写错的那份还会被写对的那份**静默掩盖**，形成隐障；
+  2. **位置语义靠人为记忆**：`get(url, config)` 与 `post(url, data, config)` 的第二参数不是同一个东西（详见 Q-AR-10）——而 TS 里两者都是对象字面量，编译器不会提醒；
+  3. **跨层泄漏**：Repository 层不该知道“鉴权令牌叫什么、怎么拼”（对照：DAO 不该自己拼 JWT），否则以后从 Bearer 换成 Cookie 就要改所有接口函数。
+- **正确做法**：
+  ```ts
+  // authApi.ts：什么都不用管，拦截器会自动注入
+  export async function fetchMeApi(): Promise<AuthUser> {
+    const res = await httpClient.get<AuthUser>('/auth/me');
+    return res.data;
+  }
+
+  // 例外：调用不经拦截器的第三方 API 时，才自己写头（且必须放在 headers 字段里）
+  httpClient.get('/third-party/x', { headers: { Authorization: `Bearer ${token}` } });
+  ```
+- **避坑口诀**：
+  **“基础设施已管的事，业务层别再管；两个写入者一碰头，错的那份被对的掩盖。”**
+
+---
+
+### [2026-09-17] HTTP 方法用错：用 `POST` 调用 GET 接口 → 405
+- **错误现象**：后端定义的是 `@app.get("/api/auth/me")`（Spring 对等物 `@GetMapping`），前端却发了 `httpClient.post("/auth/me", ...)`。
+  **实测结果**：`HTTP 405 -> {"detail":"Method Not Allowed"}`（而正确的 `GET` 返回 200）。
+- **Java 思维惯性**：
+  后端开发日常里，“提交一些参数给服务端”往往会下意识选 POST（因为 Spring MVC 里 `@RequestBody` 必须配 POST）；而浏览器地址栏能直接打开的接口、RestTemplate 默认的 GET，在前端又容易变成 `fetch`。选方法时凭习惯而非契约。
+- **底层根因**：
+  1. **HTTP 方法是路由匹配的一部分**：后端注册了“路径 + 方法”的组合，方法不同就是**不同路由**，不是同一个接口；
+  2. **405 与 404 的语义差别**：404 = 没这个路径；405 = **路径存在但方法不允许**（响应头还会带 `Allow: GET`）——能在排查时直接指向真相；
+  3. **方法语义不是风格问题**：GET = 安全（不改变服务端状态）、幂等；POST = 非幂等提交。把“读取”写成 POST 会破坏缓存、重试语义，也会让接口文档失真。
+- **正确做法**：以**后端契约为准**，先看 Swagger（`http://127.0.0.1:8000/docs`）确认方法再写调用代码：
+  ```ts
+  httpClient.get<AuthUser>('/auth/me');        // 读
+  httpClient.post<LoginResult>('/auth/login', cmd);  // 提交
+  httpClient.post('/auth/logout');             // 触发动作
+  ```
+- **避坑口诀**：
+  **“路径相同方法不同，就是两接口；读用 GET 写用 POST，405 别当 404 查。”**
+
+---
+
+### [2026-09-17] 把 `useState` 声明语句塞进了对象字面量（语句 vs 表达式的位置混淆）
+- **错误现象**：
+  ```tsx
+  const placeholder: AuthContextValue = {
+    const [user, setUser] = useState<AuthUser | null>(null);     // ❌ TS1005: ':' expected
+    const [initializing, setInitializing] = useState(true);      // ❌ TS1005: ':' expected
+    login: async () => { ... },
+  };
+  ```
+  编译器直接抛 `TS1005: ':' expected`。
+- **Java 思维惯性（弱相关）**：
+  Java 里“对象初始化”往往写在**类体**（字段声明、实例初始化块、构造器）里，类体本身就是一个能容纳**语句/声明**的区域。于是看到 `{ ... }` 就当成“一块可以写声明的地方”。
+  但 JS/TS 里 `{}` 的含义**完全由位置决定**：赋值号右侧的 `{` 是**对象字面量（一段表达式）**，里面**只能写 `key: value` 属性**，不能写任何语句。
+- **底层根因**：
+  1. **语言分层：语句（statement）> 表达式（expression）**。表达式可以嵌在语句里，反之绝不允许；`const [user, setUser] = ...` 是**声明语句**，而对象字面量是**表达式**（Java 同样如此：`Map m = { put("a",1); }` 也不合法）；
+  2. **`{}` 在 JS 里有两种身份**：表达式位置（`= {}`、`return {}`、`({})`、`() => ({})`）是对象字面量；语句位置（函数体、`if/for` 的块）是块语句 —— 经典的坑还有 `() => { a: 1 }` 会被解析成“块语句 + label”而不是返回对象；
+  3. **Hook 还有额外的位置约束（Rules of Hooks）**：`useState` 必须写在组件函数体（或自定义 Hook）的**顶层**，不能写在条件、循环、回调、对象字面量里。原因是 React 靠“**每次渲染的调用顺序**”来把 state 依次对应回各个 Hook——一旦位置不固定，对应关系就乱了。
+- **正确做法**：先声明（组件函数体顶层），再组装对象：
+  ```tsx
+  export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [initializing, setInitializing] = useState(true);
+
+    const value: AuthContextValue = { user, initializing, login, logout }; // 只放“值”
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  };
+  ```
+- **避坑口诀**：
+  **“花括号里莫写语句，只能键值对成双；Hook 只在顶层站，顺序稳定才对得上。”**
+
+---
+
+### [2026-09-17] 用对象解构去接 `useState` 的返回值（数组解构 vs 对象解构）
+- **错误现象**：
+  ```tsx
+  const { formData, setFormData } = useState<FormData>({ username: '', password: '' });
+  // TS2339: Property 'formData' does not exist on type '[FormData, Dispatch<SetStateAction<FormData>>]'
+  ```
+  同时后续 `setFormData((prev) => ...)` 还报 `TS7006: Parameter 'prev' implicitly has an 'any' type`。
+- **Java 思维惯性**：
+  Java 里取一个方法返回的多个值，要么是带**名字**的 POJO/record（`user.getName()`），要么是 `Map.Entry.getKey()/getValue()`。名字是唯一的寻址方式，所以看到“一次返回两个东西”时，下意识就想“按名字取”。
+- **底层根因**：
+  1. **JS 有两种解构，寻址方式完全不同**：
+     | 解构形式 | 寻址依据 | 要求被解构对象是 |
+     | :--- | :--- | :--- |
+     | `const { a, b } = obj` | **属性名** | 对象 |
+     | `const [x, y] = arr` | **位置** | 可迭代对象（数组/元组/字符串/Set/Map…）|
+     而 `useState` 返回的是**数组（元组）**，且元素本身没有名字——只有位置。
+  2. **TS 的元组类型是精确的**：`[FormData, Dispatch<SetStateAction<FormData>>]`，所以用对象解构直接被类型系统拒绝——**这次编译器帮了忙**；
+  3. **联锁效应**：变量根本没声明成功，所以 `setFormData` 也成了未知名字，后续回调参数 `prev` 只能退化为隐式 `any` —— **一个错误会引来一串告警，不要被数量吓到，先修根因。**
+  - 顺带理解变量命名习惯：`const [count, setCount] = useState(0)` 里的名字是**你自己起的**，React 不关心叫什么，**位置才是真相**。（这也是为什么 Hook 必须写在顶层：React 靠“第几个 Hook”来对应槽位——详见 Q-TS-08）
+- **正确做法**：
+  ```tsx
+  const [formData, setFormData] = useState<FormData>({ username: '', password: '' });
+  ```
+  Java 类比：`var result = pair(); String a = result.get(0); String b = result.get(1);`——位置寻址。
+- **避坑口诀**：
+  **“useState 返回是数组，方括号里按位取；花括号是找属性，名字对不上就报错。”**
+
+---
+
+### [2026-09-17] 从旧任务“抄代码”的三个后遗症（事件类型误用、多余分支、命名坑复发）
+- **错误现象**（在 `LoginPage` 里同时出现）：
+  ```tsx
+  export interface FormData { ... }  // ① 又撞上浏览器原生全局 FormData（TASK-003 已记录过）
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;   // ② 本页没有 checkbox，纯多余分支
+    ...
+  };
+
+  const handleSubmit = (e: React.FormHTMLAttributes<FormData>) => {   // ③ 事件类型完全用错
+    e.preventDefault();   // TS2339: Property 'preventDefault' does not exist
+  };
+  ```
+- **Java 思维惯性**：
+  Java 代码重用很自然（同一套 DTO/Service 直接引用），而且 IDE 的重命名/类型检查能兜住大部分改名。于是把 TASK-003 的表单处理函数整块搬过来、只改字段名，是很自然的动作；而 JS/TS 的**全局命名空间共享**（浏览器原生 API 也是全局的）与**类型名相似性陷阱**（`FormHTMLAttributes` vs 事件对象类型）都不会在复制的那一刻提醒你。
+- **底层根因**：
+  1. **`FormHTMLAttributes<T>` 与“提交事件类型”是两回事**：前者描述“`<form>` 标签能写哪些属性”（action/method/onSubmit/noValidate…），后者描述“**提交事件对象**”（有 `preventDefault`、`target`、`currentTarget`）。名字里都带 Form，语义却一个是“属性集合”、一个是“事件”；
+     📌 **补充（后续发现）**：React 18 及以前的惯例写法是 `React.FormEvent<HTMLFormElement>`，但在 **React 19 的 `@types/react` 里 `FormEvent` 已被标记 `@deprecated`**（理由：它在 DOM 规范里根本不存在）。正确类型是 **`React.SubmitEvent<HTMLFormElement>`**。详见 Q-RC-12；
+  2. **DOM 全局命名是共享的**：浏览器环境下 `FormData` 已被占用，自定义 interface 用同名会“遮蔽全局类”，极容易在未来某天写出 `new FormData({...})` 而拿到原生构造器（TASK-003 已为此写过一条错题）；
+  3. **多余分支是认知负债**：`type === 'checkbox'` 与 `checked` 在本页永远为假，却让读者以为“这里支持复选框”，还引入了一次类型断言 `as HTMLInputElement`（而断言正是在“掩盖类型不匹配”）。
+- **正确做法**：
+  ```tsx
+  export interface LoginFormData { username: string; password: string }   // ① 避开全局名
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {       // ② 只面对本页真实存在的元素
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {        // ③ 提交事件对象类型（React 19）
+    e.preventDefault();
+  };
+  ```
+- **避坑口诀**：
+  **“抄代码先剪枝，多余分支全删掉；属性类型不当事，提交事件 SubmitEvent。”**
+
+---
+
+### [2026-09-17] 未等待异步登出完成就跳转：状态没清完就先切视图（跳转乒乓）
+- **错误现象**：
+  ```tsx
+  const logoutPage = async () => {
+    logout();            // ❌ 没 await（而 logout 内部是 async：先 await 服务端，finally 里才清 token/清 user）
+    navigate('/login');
+  };
+  ```
+  实测表现：点“退出登录” → 跳到 `/login` → **立刻弹回 `/profile`** → 再跳 `/login`（界面闪烁两次）。
+  原因链：`navigate` 是**同步**的，而 `logout()` 的 `clearToken()/setUser(null)` 在 `finally` 里、**要等服务端接口返回（约 0.4~0.6s）之后**才执行。于是：
+  `<profile> ──点退出──> navigate 到 /login（user 仍非 null）──> LoginPage 的 “已登录则 <Navigate to='/profile'>” 把用户弹回 ──> logout 完成，user 变 null ──> 守卫再踢回 /login`。
+- **Java 思维惯性**：
+  后端里 `authService.logout()` 往往是**同步执行完才 return**；即便用了 `@Async`，也习惯了“调了就当成做完了”（fire-and-forget）。JAVA 开发者对“调一个 void 方法 = 副作用已完成”有强烈直觉；而 JS 里只要函数是 `async`，调用它只是“**排队**”，**默认不等待**。
+- **底层根因**：
+  1. **Promise 不是命令式语句而是调度凭证**：不 `await` 就只拿到一个 Promise 对象，后续代码**不等它**——与 TASK-007 的竞态、TODO ③ 的 logout 顺序是同一族问题（异步世界时序 ≠ 代码书写顺序）；
+  2. **视图切换是同步的，状态清理是异步的** → 两者发生错位，短暂出现“路由已在登录页、状态仍是已登录”的**不一致中间态**；
+  3. **契约把异步性藏起来了**：`AuthContextValue.logout: () => void` 声明为同步返回 `void`，调用方从类型上完全看不出“它需要时间才能做完”，也无从知道何时该跳转（应写成 `() => Promise<void>`）；
+  4. **静态检查管不着**：tsc/eslint 全绿（eslint 的 no-floating-promises 未开启），因为“该不该等”是语义问题，不是类型问题。
+- **正确做法**：
+  ```tsx
+  // 契约改诚实：logout: () => Promise<void>
+  const handleLogout = async () => {
+    await logout();                             // 等状态真正清完
+    navigate('/login', { replace: true });      // 再切视图（replace 避免后退又回到受保护页）
+  };
+  <button type="button" onClick={handleLogout} disabled={loggingOut}>退出登录</button>
+  ```
+  另一种正确思路：**不手动跳转**——登出后 `user` 变 `null`，用路由守卫（TODO ⑥）自动重定向，避免两处同时决定导航。
+- **避坑口诀**：
+  **“异步未落地，莫急换视图；契约写 void，时序全丢弃。”**

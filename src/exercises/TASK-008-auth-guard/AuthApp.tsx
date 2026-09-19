@@ -1,10 +1,11 @@
 import type React from 'react';
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { UserPagedList } from '../TASK-007-http-layer/UserPagedList';
 import { NotFoundPage } from '../TASK-006-router/pages/NotFoundPage';
 import { AuthProvider } from './AuthProvider';
-// 💡 实现 TODO ⑥ 后取消下面这行注释，并用 <ProtectedRoute> 包裹 /profile 与 /users：
-// import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppHeader } from './components/AppHeader';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { ProfilePage } from './pages/ProfilePage';
 
@@ -26,90 +27,36 @@ import { ProfilePage } from './pages/ProfilePage';
  *   *          → 404
  */
 export const AuthApp: React.FC = () => {
-  const getNavLinkStyle = ({ isActive }: { isActive: boolean }) => ({
-    padding: '8px 16px',
-    borderRadius: '6px',
-    textDecoration: 'none',
-    fontSize: '14px',
-    fontWeight: isActive ? 600 : 500,
-    backgroundColor: isActive ? '#2563eb' : 'transparent',
-    color: isActive ? '#ffffff' : '#64748b',
-  });
-
   return (
     <AuthProvider>
       <BrowserRouter>
         <div style={{ maxWidth: '820px', margin: '0 auto', padding: '16px' }}>
-          <header
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: '#ffffff',
-              padding: '12px 20px',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              marginBottom: '20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-            }}
-          >
-            <div style={{ fontWeight: 700, fontSize: '16px', color: '#0f172a' }}>
-              🔐 企业内网平台（需登录）
-            </div>
-
-            <nav style={{ display: 'flex', gap: '8px' }}>
-              <NavLink to="/login" style={getNavLinkStyle}>
-                登录
-              </NavLink>
-              <NavLink to="/profile" style={getNavLinkStyle}>
-                个人中心
-              </NavLink>
-              <NavLink to="/users" style={getNavLinkStyle}>
-                用户列表
-              </NavLink>
-            </nav>
-          </header>
+          {/* 顶栏是被 Provider 包住的【子组件】，所以它内部可以 useAuth() 读取登录态；
+              若直接写在本组件里，就变成“提供者自己消费自己” → 拿不到值（详见 Q-RC-13）。 */}
+          <AppHeader />
 
           <main>
             <Routes>
-              <Route
-                path="/"
-                element={
-                  <div style={{ fontSize: '14px', color: '#475569', lineHeight: 1.9 }}>
-                    <h3 style={{ marginTop: 0, color: '#0f172a' }}>
-                      📘 TASK-008 演示：登录态、路由守卫与 401 处理
-                    </h3>
-                    <p>
-                      演示账号：<code>admin / admin123</code>（ADMIN）、
-                      <code>guest / guest123</code>（GUEST）
-                    </p>
-                    <p>
-                      请先实现 <code>TODO ①②③</code>（tokenStore / authApi / AuthProvider），
-                      再用 <code>admin</code> 登录验证。
-                    </p>
-                  </div>
-                }
-              />
+              <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
 
-              {/* ================== TODO ⑦【你来实现：把守卫接上】==================
-                  /profile 与 /users 目前是**直接放行**的（未登录也能访问）。
-                  请你在实现 TODO ⑥ 的 ProtectedRoute 之后，把这两个路由包起来：
-
-                      <Route
-                        path="/profile"
-                        element={
-                          <ProtectedRoute>
-                            <ProfilePage />
-                          </ProtectedRoute>
-                        }
-                      />
-
-                  验收标准：未登录时访问 /profile 或 /users，地址栏会变成 /login；
-                            登录后可以正常进入；点浏览器"后退"不会在两者之间来回弹。
-                  ================================================================== */}
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/users" element={<UserPagedList />} />
+              {/* 受保护路由：未登录访问会被 <ProtectedRoute> 重定向到 /login */}
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/users"
+                element={
+                  <ProtectedRoute>
+                    <UserPagedList />
+                  </ProtectedRoute>
+                }
+              />
 
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

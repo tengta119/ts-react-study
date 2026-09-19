@@ -515,8 +515,103 @@ async def logout(authorization: Optional[str] = Header(None)):
     return {"success": True, "message": "该 token 已在服务端失效（再请求受保护接口将返回 401）"}
 
 
+@app.post("/api/auth/logout", summary="服务端注销 token（专供测试 401 失效链路）")
+async def logout(authorization: Optional[str] = Header(None)):
+    """
+    【教学专用】真实项目里登出只需前端删 token + 服务端把 token 加入黑名单（或等它自然过期）。
+    调用它之后，同一个 token 再调 /api/auth/me 就会得到 401，
+    正好用来验证前端的“token 失效 → 自动跳登录页”链路。
+    """
+    token = authorization[len("Bearer "):].strip() if authorization else ""
+    valid_tokens.pop(token, None)
+    return {"success": True, "message": "该 token 已在服务端失效（再请求受保护接口将返回 401）"}
+
+
 # --------------------------------------------------------------------------
-# 6. 直接运行入口
+# 6. 管理端接口 (TASK-009 教学专供) —— 带角色鉴权的完整 CRUD
+# --------------------------------------------------------------------------
+# 设计意图：与 4 节里“公开”的 /api/users/** 共存，让两种情形一目了然：
+#   /api/users/**       → 公开（老任务 TASK-003~007 仍可用）
+#   /api/admin/users/** → 需要登录；写操作（新增/修改/删除）需要 ADMIN 角色
+# 对应 Spring Security：
+#   .requestMatchers("/api/admin/**").authenticated()
+#   .requestMatchers(HttpMethod.DELETE, "/api/admin/**").hasRole("ADMIN")
+
+class UpdateUserCommand(BaseModel):
+    """编辑用户请求体（整量更新，对应 PUT 语义）"""
+    name: str
+    username: str
+    email: str
+    phone: str = "未登记"
+    company_name: Optional[str] = "研发中心"
+
+
+def _require_admin(authorization: Optional[str]) -> AuthUser:
+    """先鉴权（401）再鉴角色（403）—— 两者语义必须分开
+
+    对应 Spring Security：认证失败回 401（未登录），权限不足回 403（已登录但无权限）。
+    很多初学者把两者混为 401，会让前端无法判断“到底该跳登录还是提示无权限”。
+    """
+    user = _resolve_user(authorization)  # 可能抛 401
+    if user.role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"当前角色 {user.role} 无权执行该操作（需要 ADMIN）"
+        )
+    return user
+
+
+@app.get("/api/admin/users/page", response_model=PageResult, summary="【管理端】分页查询（需登录，任意角色）")
+async def admin_get_users_page(
+    page: int = Query(1, ge=1),
+    size: int = Query(5, ge=1, le=50),
+    keyword: Optional[str] = Query(None),
+    delay: float = Query(0.4),
+    fail: bool = Query(False),
+    authorization: Optional[str] = Header(None),
+):
+    _resolve_user(authorization)  # 仅要求“已登录”，不限制角色
+    return await get_users_page(page=page, size=size, keyword=keyword, delay=delay, fail=fail)
+
+
+@app.post("/api/admin/users", response_model=UserDTO, status_code=status.HTTP_201_CREATED, summary="【管理端】新增用户（需 ADMIN）")
+async def admin_create_user(cmd: CreateUserCommand, authorization: Optional[str] = Header(None)):
+    _require_admin(authorization)
+    return await create_user(cmd)
+
+
+@app.put("/api/admin/users/{user_id}", response_model=UserDTO, summary="【管理端】编辑用户（需 ADMIN，PUT 整量更新）")
+async def admin_update_user(
+    user_id: int,
+    cmd: UpdateUserCommand,
+    authorization: Optional[str] = Header(None),
+):
+    _require_admin(authorization)
+
+    for index, u in enumerate(db_users):
+        if u.id == user_id:
+            updated = UserDTO(
+                id=user_id,
+                name=cmd.name,
+                username=cmd.username,
+                email=cmd.email,
+                phone=cmd.phone,
+                company=CompanyDTO(name=cmd.company_name or "独立开发者"),
+            )
+            db_users[index] = updated  # 内存数据库里的“整量替换”
+            return updated
+
+    raise HTTPException(status_code=404, detail=f"用户 ID={user_id} 不存在")
+
+
+@app.delete("/api/admin/users/{user_id}", summary="【管理端】删除用户（需 ADMIN）")
+async def admin_delete_user(user_id: int, authorization: Optional[str] = Header(None)):
+    _require_admin(authorization)
+    return await delete_user(user_id)
+
+
+# --------------------------------------------------------------------------
+# 7. 直接运行入口
 # --------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn

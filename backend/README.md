@@ -49,9 +49,18 @@ Windows 环境下直接双击运行 `backend/start.bat` 即可启动！
 | `/api/auth/login` | `POST` | **登录签发模拟 JWT（TASK-008）** | 演示账号 `admin / admin123`、`guest / guest123`；`?delay=1.5` 模拟慢速网络；密码错返回 401 |
 | `/api/auth/me` | `GET` | **用 token 换取当前用户（受保护）** | 需 `Authorization: Bearer <token>`；无 token / token 无效均 401 |
 | `/api/auth/logout` | `POST` | **服务端使 token 失效（TASK-008）** | 专供验证前端“401 → 清 token → 跳登录”链路 |
+| `/api/admin/users/page` | `GET` | **【管理端】分页（TASK-009）** | 需登录（任意角色）；匿名 → **401** |
+| `/api/admin/users` | `POST` | **【管理端】新增（需 ADMIN）** | guest → **403**；admin → **201** |
+| `/api/admin/users/{id}` | `PUT` | **【管理端】编辑（需 ADMIN）** | 整量更新；id 不存在 → 404 |
+| `/api/admin/users/{id}` | `DELETE` | **【管理端】删除（需 ADMIN）** | guest → **403**；admin → 200 |
 
 > **开发期跨域提示**：TASK-007 起推荐在 `vite.config.ts` 中配置 dev proxy，把 `/api/**` 转发到 `http://127.0.0.1:8000`。
 > 这样浏览器视角永远是同源请求，不触发 CORS 预检；生产环境的等价物就是 Nginx 的 `location /api { proxy_pass http://backend; }`。
+>
+> **TASK-009 权限语义速查**：
+> - **401 Unauthorized** —— 没带/带了无效 token（“我不知道你是谁”）→ 前端应跳登录页；
+> - **403 Forbidden** —— 已登录但角色不够（“我知道你是谁，但你不能做这个”）→ 前端应提示无权限。
+> 两者必须分开，前端才能决定“跳登录”还是“提示无权限”。
 
 ---
 
