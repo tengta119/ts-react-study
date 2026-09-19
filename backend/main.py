@@ -10,7 +10,7 @@ TASK-004 专属辅助后端服务 (FastAPI)
 
 import asyncio
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, HTTPException, Query, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field
 
@@ -401,7 +401,122 @@ async def reset_database():
 
 
 # --------------------------------------------------------------------------
-# 5. 直接运行入口
+# 5. 认证模块 (TASK-008 教学专供) —— 模拟 JWT 登录与鉴权
+# --------------------------------------------------------------------------
+import secrets
+
+class LoginCommand(BaseModel):
+    """登录请求体（对应 Spring `@RequestBody LoginCommand cmd`）"""
+    username: str = Field(..., description="登录名", example="admin")
+    password: str = Field(..., description="密码", example="admin123")
+
+class AuthUser(BaseModel):
+    """当前登录用户信息（不包含密码；对应 Java 的 UserPrincipal / SecurityContext 里的主体）"""
+    username: str = Field(..., example="admin")
+    name: str = Field(..., example="张伟 (Spring 核心微服务专家)")
+    role: str = Field(..., example="ADMIN")
+
+class LoginResult(BaseModel):
+    """登录成功响应：token + 过期秒数 + 用户信息
+
+    对应真实 Spring Security + JWT：登录接口返回 accessToken，
+    前端存起来，后续每个请求带 `Authorization: Bearer <token>`。
+    """
+    token: str = Field(..., description="访问令牌")
+    tokenType: str = Field("Bearer", description="令牌类型")
+    expiresIn: int = Field(1800, description="过期秒数")
+    user: AuthUser
+
+# 演示账号（真实项目里在数据库表 sys_user 中，密码为 BCrypt 哈希）
+DEMO_ACCOUNTS = {
+    "admin": {"password": "admin123", "name": "张伟 (Spring 核心微服务专家)", "role": "ADMIN"},
+    "guest": {"password": "guest123", "name": "访客用户", "role": "GUEST"},
+}
+
+# 服务端内存态：已签发的有效 token（登出 / expire 后即从集合中移除）
+valid_tokens: dict = {}
+
+def _build_token(username: str) -> str:
+    """生成一个“长得像 JWT”的演示令牌（教学用，不做真实签名）"""
+    return f"learn-jwt.{username}.{secrets.token_hex(8)}"
+
+def _resolve_user(authorization: Optional[str]) -> AuthUser:
+    """从 Authorization 头解析出当前用户；无效时抛 401
+
+    对应 Spring Security 的 OncePerRequestFilter：在进入 Controller 之前做鉴权，
+    失败就返回 401 Unauthorized（前端拦截器据此统一跳登录）。
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="未提供有效的 Authorization 头，请先登录"
+        )
+
+    token = authorization[len("Bearer "):].strip()
+    username = valid_tokens.get(token)
+    if not username or username not in DEMO_ACCOUNTS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="登录状态已失效，请重新登录"
+        )
+
+    acc = DEMO_ACCOUNTS[username]
+    return AuthUser(username=username, name=acc["name"], role=acc["role"])
+
+
+@app.post("/api/auth/login", response_model=LoginResult, summary="登录并签发模拟 JWT")
+async def login(
+    cmd: LoginCommand,
+    delay: float = Query(0.6, description="模拟网络延迟(秒)，方便观察登录按钮 Loading"),
+):
+    """
+    演示账号：admin / admin123（管理员）、guest / guest123（访客）
+    - 慢速网络测试：POST /api/auth/login?delay=1.5
+    """
+    if delay > 0:
+        await asyncio.sleep(delay)
+
+    acc = DEMO_ACCOUNTS.get(cmd.username)
+    if acc is None or acc["password"] != cmd.password:
+        # ⚠️ 注意：认证失败用 401，不是 400；生产环境不得回显“用户不存在/密码错误”的区别
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误"
+        )
+
+    token = _build_token(cmd.username)
+    valid_tokens[token] = cmd.username
+    return LoginResult(
+        token=token,
+        expiresIn=1800,
+        user=AuthUser(username=cmd.username, name=acc["name"], role=acc["role"])
+    )
+
+
+@app.get("/api/auth/me", response_model=AuthUser, summary="用 token 换取当前登录用户（受保护接口）")
+async def get_current_user(authorization: Optional[str] = Header(None)):
+    """
+    请求示例：
+      curl -H "Authorization: Bearer learn-jwt.admin.xxxx" http://127.0.0.1:8000/api/auth/me
+    没带 token / token 无效 → 401，专供前端测试全局 401 处理链路。
+    """
+    return _resolve_user(authorization)
+
+
+@app.post("/api/auth/logout", summary="服务端注销 token（专供测试 401 失效链路）")
+async def logout(authorization: Optional[str] = Header(None)):
+    """
+    【教学专用】真实项目里登出只需前端删 token + 服务端把 token 加入黑名单（或等它自然过期）。
+    调用它之后，同一个 token 再调 /api/auth/me 就会得到 401，
+    正好用来验证前端的“token 失效 → 自动跳登录页”链路。
+    """
+    token = authorization[len("Bearer "):].strip() if authorization else ""
+    valid_tokens.pop(token, None)
+    return {"success": True, "message": "该 token 已在服务端失效（再请求受保护接口将返回 401）"}
+
+
+# --------------------------------------------------------------------------
+# 6. 直接运行入口
 # --------------------------------------------------------------------------
 if __name__ == "__main__":
     import uvicorn

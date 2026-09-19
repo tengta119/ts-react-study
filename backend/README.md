@@ -46,6 +46,9 @@ Windows 环境下直接双击运行 `backend/start.bat` 即可启动！
 | `/api/users` | `POST` | 新增用户 | 结合受控表单实现新增 |
 | `/api/users/{id}` | `DELETE` | 删除用户 | 结合前端列表实现删除 |
 | `/api/reset` | `POST` | 重置数据库 | 随时恢复到初始 23 条种子数据 |
+| `/api/auth/login` | `POST` | **登录签发模拟 JWT（TASK-008）** | 演示账号 `admin / admin123`、`guest / guest123`；`?delay=1.5` 模拟慢速网络；密码错返回 401 |
+| `/api/auth/me` | `GET` | **用 token 换取当前用户（受保护）** | 需 `Authorization: Bearer <token>`；无 token / token 无效均 401 |
+| `/api/auth/logout` | `POST` | **服务端使 token 失效（TASK-008）** | 专供验证前端“401 → 清 token → 跳登录”链路 |
 
 > **开发期跨域提示**：TASK-007 起推荐在 `vite.config.ts` 中配置 dev proxy，把 `/api/**` 转发到 `http://127.0.0.1:8000`。
 > 这样浏览器视角永远是同源请求，不触发 CORS 预检；生产环境的等价物就是 Nginx 的 `location /api { proxy_pass http://backend; }`。

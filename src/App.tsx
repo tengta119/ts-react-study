@@ -6,8 +6,18 @@ import { UserListApi } from './exercises/TASK-004-api/UserListApi';
 import { UserManager } from './exercises/TASK-005-refactor-hook/UserManager';
 import { RouterApp } from './exercises/TASK-006-router/RouterApp';
 import { UserPagedList } from './exercises/TASK-007-http-layer/UserPagedList';
+import { AuthApp } from './exercises/TASK-008-auth-guard/AuthApp';
 
-type TaskId = 'overview' | 'counter' | 'todo' | 'form' | 'api' | 'manager' | 'router' | 'paged';
+type TaskId =
+  | 'overview'
+  | 'counter'
+  | 'todo'
+  | 'form'
+  | 'api'
+  | 'manager'
+  | 'router'
+  | 'paged'
+  | 'auth';
 
 interface TaskMeta {
   id: TaskId;
@@ -19,7 +29,7 @@ interface TaskMeta {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<TaskId>('paged');
+  const [activeTab, setActiveTab] = useState<TaskId>('auth');
 
   const tasks: TaskMeta[] = [
     {
@@ -77,6 +87,14 @@ export function App() {
       component: <UserPagedList />,
       description: '封装统一 axios 客户端与拦截器，对齐 PageResult<T> 分页契约，处理搜索联动与请求竞态。',
       filePath: 'src/exercises/TASK-007-http-layer/',
+    },
+    {
+      id: 'auth',
+      name: 'TASK-008 登录鉴权',
+      badge: 'Context & 路由守卫',
+      component: <AuthApp />,
+      description: 'JWT 登录态持久化、AuthContext 全局共享、ProtectedRoute 守卫与 401 全局处理。',
+      filePath: 'src/exercises/TASK-008-auth-guard/',
     },
     {
       id: 'overview',

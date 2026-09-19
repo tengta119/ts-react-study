@@ -1,6 +1,6 @@
 # 学习进度与知识看板 (learning.md)
 
-> 当前状态：**阶段 8 第一关 TASK-007 已通关 ✅ ｜ 下一目标：TASK-008（JWT 登录认证 + 路由守卫）（2026-09-17）**
+> 当前状态：**阶段 8 已推进至 TASK-008（JWT 登录认证 + 路由守卫）🟡 进行中（2026-09-17）**
 > 核心策略：**先理解 → 自己写 → 教练 Review → 纠错修改 → 总结归纳**
 
 ---
@@ -33,7 +33,9 @@
 - 洞悉了动态路由 `:id` 底层正则命名捕获组的解析机制，彻底融会贯通了与 Spring Boot `@PathVariable` 的底层一致性；
 - 熟练运用 `useParams<{ id: string }>()` 安全提取路径参数、`useNavigate()` 编程式导航回退，以及 `<NavLink>` 动态 `isActive` 菜单高亮。
 
-**下一步进行中**：**TASK-008「JWT 登录认证与路由守卫」**（阶段 8 第二关）。TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `Authorization` 插槽、响应拦截器里预留的 401 分支位置。
+**下一步进行中**：**TASK-008「JWT 登录认证与路由守卫」**（阶段 8 第二关，工作区 `src/exercises/TASK-008-auth-guard/`，TODO ①~⑦ 已就位）。
+后端已新增认证接口：`POST /api/auth/login`（演示账号 admin/admin123、guest/guest123）、`GET /api/auth/me`（401 可测）、`POST /api/auth/logout`（制造 token 失效场景）。
+TASK-007 已提供的现成基础：`TOKEN_KEY` 常量、请求拦截器里的 `Authorization` 插槽、响应拦截器里预留的 401 分支位置。
 
 ---
 
@@ -58,7 +60,7 @@
 | **阶段 5** | **副作用与生命周期 (useEffect)** | 掌握数据请求、定时器清理、依赖项数组机制 | ✅ 阶段通关（TASK-004 通关） |
 | **阶段 6** | **组件拆分与通信** | 父子通信、状态提升、自定义 Hook 抽离逻辑 | ✅ 阶段通关（TASK-005 通关） |
 | **阶段 7** | **React Router 前端路由** | 单页应用导航、动态路由传参、路由守卫思路 | ✅ 阶段通关（TASK-006 通关） |
-| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | 🟡 进行中（TASK-007 通关，TASK-008/009 待开） |
+| **阶段 8** | **Spring Boot + React 联调实战** | 跨域配置、Token 认证、CRUD 完整小项目独立开发 | 🟡 进行中（TASK-007 通关，TASK-008 进行中） |
 
 ---
 
@@ -115,13 +117,15 @@
   - [ ] `interface` 属性定义（可选 `?`、只读 `readonly`）
   - [ ] `interface` 与 `type` 的区别与取舍
   - [ ] 联合类型 (`|`) 与 字面量类型
-- [ ] **阶段 8 · TASK-008 待开启（JWT 登录认证 + 路由守卫）**：
-  - [ ] 登录表单（受控 + 校验）与后端 `POST /api/auth/login` 联调
-  - [ ] token 持久化：`localStorage.setItem(TOKEN_KEY, ...)`（与拦截器读写共用常量）
-  - [ ] `AuthContext` + `useContext`：登录态全局共享（避免 Prop Drilling）
-  - [ ] `ProtectedRoute` 路由守卫：未登录 `<Navigate to="/login" replace />`
-  - [ ] 401 全局处理：响应拦截器里清 token → 跳登录（TASK-007 已预留插槽）
-  - [ ] 登出与登录态过期体验（重定向后回跳原页面）
+- [ ] **阶段 8 · TASK-008 进行中（JWT 登录认证 + 路由守卫）**：
+  - [ ] token 持久化封装 `tokenStore`（save/read/clear，统一用 `TOKEN_KEY`）
+  - [ ] 认证接口层 `authApi`：`loginApi` / `fetchMeApi` / `logoutApi`
+  - [ ] `AuthProvider`：`user` + `initializing` 三态、启动时用 token 恢复登录态、`login` 先存 token 再更新用户、`logout` 清空
+  - [ ] `AuthContext` + `useAuth()`：`createContext` / `useContext`，越界使用显式报错
+  - [ ] 登录页：受控表单 + `preventDefault` + `submitting` 禁用 + 错误中文提示 + 成功后跳转
+  - [ ] `ProtectedRoute` 路由守卫：`initializing` 显示校验中、未登录 `<Navigate replace>`、已登录放行（对照 Spring Security `OncePerRequestFilter`）
+  - [ ] 登录态持久化验证：刷新浏览器不被踢回登录页
+  - [ ] 401 失效链路实测（用 `POST /api/auth/logout` 制造失效）
 - [ ] **阶段 8 · TASK-009（全栈综合项目收口）**：
   - [ ] 登录 → 分页列表 → 详情 → 增删 → 404 全链路串成中后台
   - [ ] 进阶项：删除后末页页码自动回退、搜索防抖、`AbortController` 真正取消在途请求
