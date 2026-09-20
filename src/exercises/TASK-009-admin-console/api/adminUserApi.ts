@@ -1,5 +1,5 @@
 // 💡 实现时补上这行导入（脚手架阶段先注释，避免未使用导入导致 TS6133）：
-// import { httpClient } from '../../TASK-007-http-layer/httpClient';
+import { httpClient } from '../../TASK-007-http-layer/httpClient';
 import type { PageResult, UserQueryParams } from '../../TASK-007-http-layer/types';
 import type { ApiUser, CreateUserCommand, UpdateUserCommand } from '../types';
 
@@ -16,27 +16,41 @@ import type { ApiUser, CreateUserCommand, UpdateUserCommand } from '../types';
  *      401（未登录）与 403（已登录但无权限）都由响应拦截器归一化为中文 Error。
  */
 
-// ================== TODO ①【你来实现：4 个接口函数】==================
-// 套路与 TASK-008 的 authApi 完全一致：httpClient.post<类型>(相对路径, 请求体) → return res.data
+// ================== TODO ①【已完成】==================
+// 统一套路：
+//   泛型参数（<T>）= res.data 的类型 = 后端响应体类型（不是入参类型！）
+//   参数位置：无 body 的方法（get / delete）第二个位置是 config；
+//             有 body 的方法（post / put / patch）第二个位置是 data，config 退到第三位。
 
-/** 分页 + 关键字查询（管理端） */
+/** 分页 + 关键字查询（管理端，需登录，任意角色） */
 export async function fetchAdminUserPage(
   params: UserQueryParams
 ): Promise<PageResult<ApiUser>> {
-  throw new Error(`TODO ①：fetchAdminUserPage 尚未实现（page=${params.page}, keyword=${params.keyword ?? '无'}）`);
+  const res = await httpClient.get<PageResult<ApiUser>>("/admin/users/page", { params });
+
+  return res.data
 }
 
 /** 新增用户（需 ADMIN） */
 export async function createAdminUser(cmd: CreateUserCommand): Promise<ApiUser> {
-  throw new Error(`TODO ①：createAdminUser 尚未实现（username=${cmd.username}）`);
+  const res = await httpClient.post<ApiUser>("/admin/users", cmd);
+
+  return res.data
 }
 
 /** 编辑用户（需 ADMIN，PUT 整量更新） */
 export async function updateAdminUser(id: number, cmd: UpdateUserCommand): Promise<ApiUser> {
-  throw new Error(`TODO ①：updateAdminUser 尚未实现（id=${id}, name=${cmd.name}）`);
+  // ① 资源身份走 URL 路径（模板字符串拼接，对应后端 @PathVariable {user_id}）
+  // ② 载荷走 body；注意 PUT 是「整量替换」：cmd 里没给的字段会被后端置为默认值
+  // ③ 两个类型各司其职：入参类型由 cmd 变量保证（UpdateUserCommand），响应泛型是 ApiUser
+  const res = await httpClient.put<ApiUser>(`/admin/users/${id}`, cmd);
+  return res.data;
 }
 
 /** 删除用户（需 ADMIN） */
 export async function deleteAdminUser(id: number): Promise<void> {
-  throw new Error(`TODO ①：deleteAdminUser 尚未实现（id=${id}）`);
+  // DELETE 没有请求体，也不需要响应数据 → 用 await 如实表达「只关心成功/失败」。
+  // 契约是 Promise<void>；若写成 `const res = await ...; return res.data`，
+  // 语法合法但语义荒谬：把一个 void 传给调用方，还容易诱使下游写 res.data.id。
+  await httpClient.delete<void>(`/admin/users/${id}`);
 }

@@ -17,7 +17,23 @@ export interface LoginFormData {
   password: string;
 }
 
-export const LoginPage: React.FC = () => {
+/**
+ * TASK-009 参数化说明：登录成功后该去哪，由**调用方注入**，而不是写死在组件里。
+ *
+ * 为什么？同一个登录页会被不同应用复用：
+ *   TASK-008 的 AuthApp       → 登录后去 /profile（默认值，行为完全不变）
+ *   TASK-009 的 AdminApp      → 登录后去 /dashboard（管理台没有 /profile）
+ *
+ * 若把 '/profile' 写死在组件内部，AdminApp 登录成功后就会被弹到一个不存在的路由（404）。
+ * Java 类比：Controller 里 redirect 的目标不该硬编码 —— 对应 Spring Security 的
+ * `SavedRequest` / `successHandler` 把"登录后去哪"与"登录逻辑"解耦。
+ */
+export interface LoginPageProps {
+  /** 登录成功（以及已登录用户访问本页）后跳转的目标路径。默认 '/profile'，保持 TASK-008 行为不变 */
+  redirectTo?: string;
+}
+
+export const LoginPage: React.FC<LoginPageProps> = ({ redirectTo = '/profile' }) => {
   const { login, user } = useAuth();
   const navigate = useNavigate();
 
@@ -35,7 +51,7 @@ export const LoginPage: React.FC = () => {
   // 已登录用户不该再看到登录页 —— 直接重定向（replace 防止历史记录里留下登录页）
   // ⚠️ 注意：这个提前 return 必须放在所有 Hook 调用之后（Rules of Hooks）
   if (user !== null) {
-    return <Navigate to="/profile" replace />;
+    return <Navigate to={redirectTo} replace />;
   }
 
   // 一个 handleChange 服务所有输入框：靠 e.target.name + 计算属性名动态更新
@@ -60,7 +76,7 @@ export const LoginPage: React.FC = () => {
 
       // ④ 在【事件处理器】里顺序跳转，而不是用 useEffect 监听 user（那样会先闪一帧登录页）
       //    replace: true → 用“替换”而非“压栈”，避免后退时又回到登录页
-      navigate('/profile', { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       // ⑤ 错误消息来自 TASK-007 的响应拦截器归一化结果（后端中文 detail）
       setError(err instanceof Error ? err.message : '登录失败，请稍后重试');

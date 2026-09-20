@@ -1,6 +1,7 @@
 import type { ApiUser } from '../TASK-005-refactor-hook/types';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchUserPage } from './userApi';
+import type { PageFetcher } from './types';
 /**
  * TASK-007: 分页数据 Hook 的对外契约（Service 层的「接口」）
  *
@@ -34,12 +35,21 @@ export interface PagedUsersResult {
  * TASK-007: 分页 + 搜索的完整状态机 Hook
  *
  * 状态机总览（已实现）：
+ *   0. 【TASK-009】依赖注入层：`fetcher` 参数决定「请求怎么发」，状态机本身不关心是公开接口还是管理端接口
  *   1. 状态层：users / total / totalPages / page / size / keyword / loading / error / reloadToken
  *   2. 副作用层：page / size / keyword / reloadToken 任一变化 → 重新拉取当前页
  *   3. 竞态层：useRef 请求序号，只有“最新一次请求”的结果才允许写入状态
  *   4. 对外能力：setPage（带边界校验）/ setKeyword（联动归 1）/ reload（自增刷新令牌）
+ *
+ * ⚠️ 签名变更说明（TASK-009）：第一个参数由「每页条数」改为「数据获取器」。
+ *    这是一个**破坏性变更** —— 旧调用 `usePagedUsers(5)` 会让 tsc 报错，
+ *    而这份“报错清单”正好就是需要同步修改的调用方列表（编译器替你做了影响面分析）。
  */
-export function usePagedUsers(initialSize = 5): PagedUsersResult {
+export function usePagedUsers(
+  // 默认值保留旧行为：不传 fetcher 时仍走 TASK-007 的公开接口 → 对旧调用方“只需把 5 往后挪一位”
+  fetcher: PageFetcher<ApiUser> = fetchUserPage,
+  initialSize = 5
+): PagedUsersResult {
   // ────────────────────────────────────────────────────────────────
   // 第 1 步：状态声明 —— 只有「会驱动界面变化」的数据才配当 state
   // ────────────────────────────────────────────────────────────────
@@ -81,7 +91,7 @@ export function usePagedUsers(initialSize = 5): PagedUsersResult {
       setError(null); // 每次新请求先清掉上一次的错误，避免旧错误残留
 
       try {
-        const result = await fetchUserPage({
+        const result = await fetcher({
           page,
           size,
           // 空字符串（'   ' 也算）转成 undefined：axios 会自动忽略该参数，
@@ -109,7 +119,7 @@ export function usePagedUsers(initialSize = 5): PagedUsersResult {
     };
 
     void load(); // void 表示「我有意不等待这个 Promise」，只是消除静态检查的告警
-  }, [page, size, keyword, reloadToken]);
+  }, [page, size, keyword, reloadToken, fetcher]); // ⚠️ 依赖数组必须放全：漏掉 fetcher 就会出现“换了接口却还请求旧地址”
 
   // ────────────────────────────────────────────────────────────────
   // 第 4 步：对外三个方法
@@ -117,25 +127,33 @@ export function usePagedUsers(initialSize = 5): PagedUsersResult {
 
   // 跳页：必须做边界校验，杜绝请求空页
   //   （Pagination 组件已经禁用了首末页按钮，但"方法自己守住边界"才是真正的健壮性）
-  const setPage = (nextPage: number) => {
-    if (nextPage < 1) return;                       // 不能小于第 1 页
-    if (totalPages > 0 && nextPage > totalPages) return; // 不能超过最后一页
-    setPageState(nextPage);
-  };
+  //
+  // 用 useCallback 包起来的原因：调用方可能会把它放进 useEffect 的依赖数组（TASK-009 的搜索防抖就是如此）。
+  //   若不包，函数每次渲染都是新引用 → 依赖数组每轮都“变化” → effect 反复执行。
+  //   依赖只有 [totalPages]：因为只有边界校验用到了它。对应 Java 的“不可变对象 + 记忆化”。
+  const setPage = useCallback(
+    (nextPage: number) => {
+      if (nextPage < 1) return;                       // 不能小于第 1 页
+      if (totalPages > 0 && nextPage > totalPages) return; // 不能超过最后一页
+      setPageState(nextPage);
+    },
+    [totalPages]
+  );
 
   // ⭐ 更新关键字的同时必须把页码归 1
   //   反例：在第 3 页时改关键字 → 搜索结果通常只有 1 页 → 请求 page=3 拿到空列表
   //        → 用户以为"搜不到"，其实是页码越界了
-  const setKeyword = (nextKeyword: string) => {
+  //   依赖数组为 []：函数体只调用了两个 useState 的 setter，而 setter 的引用是 React 保证稳定的
+  const setKeyword = useCallback((nextKeyword: string) => {
     setKeywordState(nextKeyword);
     setPageState(1);
-  };
+  }, []);
 
   // 重新加载：用「自增刷新令牌」触发上面的 effect
   //   为什么不能把 load 函数直接放进依赖数组？
   //   因为组件内每次渲染都会新建函数引用，依赖数组会渲染一次变一次 → 死循环
   //   用函数式更新（t => t + 1）而不是 reloadToken + 1，避免闭包读到旧值（复习 TASK-002）
-  const reload = () => setReloadToken((t) => t + 1);
+  const reload = useCallback(() => setReloadToken((t) => t + 1), []);
 
   return {
     users,

@@ -14,6 +14,8 @@
 | [`state.md`](./state.md) | 状态机制与不可变数据 | `实例变量 / 内存引用 / 脏检查与浅比较` |
 | [`hooks.md`](./hooks.md) | Hook 原理与常用工具 | `AOP / 事件监听 / 跨次调用持有引用 (useRef)` |
 | [`router.md`](./router.md) | 前端路由与 SPA | `@RequestMapping / 路由分发与单页无刷新切换` |
+| [`deploy.md`](./deploy.md) | 生产构建与部署（Nginx + `/api` 反代）| `mvn package / 静态资源托管 / 网关路由转发` |
+| [`final-exam.md`](./final-exam.md) | **结业口试题库与参考答案（8 题）** | 跨 TASK-001~009 综合（防抖/竞态、401 vs 403、字段映射、SPA 部署…）|
 
 ---
 

@@ -42,3 +42,18 @@ export interface UserQueryParams {
   /** 教学用：模拟后端 500，观察 Error 状态与重试 */
   fail?: boolean;
 }
+
+/**
+ * 分页数据获取器：分页状态机与"具体请求实现"之间的**契约**（函数类型）。
+ *
+ * 为什么需要它（TASK-009 的依赖倒置）：
+ *   TASK-007 的 usePagedUsers 里硬编码了 fetchUserPage（公开接口 `/users/page`）；
+ *   TASK-009 要走管理端 `/admin/users/page`，但"分页 + 竞态 + 四态 + 边界校验"的逻辑一模一样。
+ *   与其复制一份状态机，不如把"请求怎么发"抽成参数注入进去 —— 这就是前端的依赖注入。
+ *
+ * Java 对照：
+ *   `PageFetcher<User>` ⇄ 一个函数式接口 `@FunctionalInterface interface PageFetcher { PageResult<User> fetch(UserQueryParams p); }`
+ *   传入 `fetchAdminUserPage` ⇄ 传入方法引用 `this::fetchAdminUserPage`
+ *   泛型 <T> ⇄ `interface PageFetcher<T>`（Spring Data 的 `Pageable` + `Page<T>` 组合的那一层抽象）
+ */
+export type PageFetcher<T> = (params: UserQueryParams) => Promise<PageResult<T>>;

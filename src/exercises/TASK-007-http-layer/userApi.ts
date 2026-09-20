@@ -27,3 +27,19 @@ export async function fetchUserPage(
   // 所以这里只需要普通 return，不需要（也不能）手写 new Promise()
   return res.data;
 }
+
+/**
+ * 查询单个用户详情：GET /api/users/{id}（公开接口，无需登录）
+ *
+ * 【TASK-009 补充说明】任务卡里写的是“可用 httpClient 直接调”，但**不推荐**：
+ *   若在页面组件里直接 `httpClient.get(...)`，URL 就散落到了 UI 层 ——
+ *   将来后端把 `/users/{id}` 改成 `/users/detail/{id}`，你得翻遍所有页面找。
+ *   放在 Repository 层，URL 与契约只有一个来源（这是 TASK-007 的分层纪律）。
+ *
+ * ⚠️ 路径参数是模板字符串拼的（对应后端 @PathVariable），axios 不会做任何校验：
+ *    所以“id 合法不合法”必须在**调用方**先判好，不能把 NaN 拼进来（会得到 `/users/NaN` → 422/404）。
+ */
+export async function fetchUserDetail(id: number): Promise<ApiUser> {
+  const res = await httpClient.get<ApiUser>(`/users/${id}`);
+  return res.data;
+}

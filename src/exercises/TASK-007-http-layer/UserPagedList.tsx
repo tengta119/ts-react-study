@@ -1,6 +1,8 @@
 import type React from 'react';
 import { Pagination } from './components/Pagination';
 import { usePagedUsers } from './usePagedUsers';
+import { fetchUserPage } from './userApi';
+
 
 /**
  * TASK-007: 用户分页列表页（Smart / Container 容器组件）
@@ -34,6 +36,8 @@ const stateStyle: React.CSSProperties = {
 
 export const UserPagedList: React.FC = () => {
   // 一行注入全套分页能力（类比注入 Spring @Service）
+  // ⚠️ TASK-009 变更了 usePagedUsers 的签名（第一个参数改为数据获取器），这里必须同步 ——
+  //    正是 tsc 把这一行标红，才让我知道「这个接口还有别的地方在用」（编译器即影响面分析）
   const {
     users,
     total,
@@ -46,7 +50,7 @@ export const UserPagedList: React.FC = () => {
     setPage,
     setKeyword,
     reload,
-  } = usePagedUsers(5);
+  } = usePagedUsers(fetchUserPage, 5);
 
   return (
     <div style={{ padding: '16px', fontFamily: 'sans-serif' }}>

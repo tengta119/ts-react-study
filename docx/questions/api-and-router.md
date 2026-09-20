@@ -317,4 +317,122 @@
   ```
 - **掌握标记**：[ ] 待主动回忆
 
+---
+
+### Q-AR-12: axios 的 PUT 与 DELETE 该怎么调用？它们和 GET/POST 的签名差异在哪？为什么删除函数的返回类型是 `Promise<void>`？
+- **提问背景**：TASK-008 的 `authApi.ts` 只写过 `get` / `post` 两个方法；TASK-009 TODO ① 要写 PUT（编辑）与 DELETE（删除）时不知道“参数放第几个位置、泛型写在哪、返回值该 return 什么”，尤其是删除函数被要求声明为 `Promise<void>`，感觉和前面的 GET/POST 完全不是一套写法。
+- **核心解答 (Answer)**：
+  - **现象**：PUT/DELETE 看起来“没有范例可抄”，是因为 TASK-008 恰好没用到它们；但 axios 的方法家族其实只有**一条签名规则**，记住它就够用：
+    ```ts
+    httpClient.get<T>(url, config?)                        // 无 body
+    httpClient.delete<T>(url, config?)                     // 无 body（⚠️ 第二个位置是 config，不是 data！）
+    httpClient.post<T>(url, data?, config?)                // 有 body
+    httpClient.put<T>(url, data?, config?)                 // 有 body（整量替换）
+    httpClient.patch<T>(url, data?, config?)               // 有 body（局部更新）
+    ```
+  - **根本原因（来自 HTTP 协议本身的不对称）**：GET/DELETE 在语义上没有请求体（DELETE 按 RFC 可以带，但 axios 不提供那个位置），所以第二个参数直接就是 config；POST/PUT/PATCH 有请求体，于是 data 占住第二个位置、config 被挤到第三个。这也解释了 TASK-007 的 `get(url, { params })` 与 TASK-008 的 `post(url, cmd)` 为什么长得像却不是一回事（见 Q-AR-10）。
+  - **三个参数位置必须分清（这是最容易混的地方）**：
+    | 位置 | 承载什么 | 本任务例子 | 后端接收方式 |
+    | :--- | :--- | :--- | :--- |
+    | **URL 路径**（模板字符串拼出来）| 资源**身份**（哪一个资源）| `/admin/users/${id}` | `@PathVariable` / FastAPI `{user_id}` |
+    | **config.params** | 过滤/分页/翻页**条件** | `{ page, size, keyword }` | `@RequestParam` / FastAPI `Query(...)` |
+    | **data（body）** | 要写入的**载荷** | `UpdateUserCommand` | `@RequestBody` / Pydantic 模型参数 |
+    > ⚠️ 路径参数**不是 axios 的能力**，它是纯字符串拼接（模板字符串）：axios 收到的已经是一根完整的 URL。这也意味着 **`id` 不会被自动编码**——数字 id 无所谓，若是用户输入的字符串（如用户名）必须自己 `encodeURIComponent`。
+  - **DELETE 为什么是 `Promise<void>`**：后端删除成功通常只回一个“确认信息”（`204 No Content`，或本项目的 `{"success": true}`），**没有任何前端需要的业务数据**。类型是契约的一部分，诚实声明“这次调用没有产出”比硬塞一个假对象更有价值。具体写法就是 **`await` 一下、不 return 任何东西**：
+    ```ts
+    await httpClient.delete<void>(`/admin/users/${id}`);   // ✅ 只关心“成功/失败”
+    ```
+    反面写法：`const res = await httpClient.delete(...); return res.data;`（语法合法但语义荒谬——把一个 `void` 传来传去，调用方拿到 `undefined`，还容易诱使下游写 `res.data.id` 这种必然崩的代码）。
+  - **需要删除后的“回执数据”怎么办**：那就不该返回 void。例如后端若返回被删除对象的 id 或剩余条数，就把它写进泛型：`httpClient.delete<{ id: number }>(url)`，让**类型签名如实反映运行时的值**（这就是 TASK-007 学过的“Repository 层职责边界”：签名 = 运行时值）。
+  - **PUT 的泛型怎么写**：`httpClient.put<ApiUser>(url, cmd)` —— 泛型描述的是 **`res.data` 的类型**（后端回给你的**最新实体**），而**不是**入参类型（入参类型由 `cmd` 变量的类型自己保证）。所以一个 PUT 里往往有两个类型：入参用 `UpdateUserCommand`，响应泛型用 `ApiUser`。
+  - **PUT vs PATCH 的语义差异**（后端契约决定前端用哪个）：PUT = **整量替换**（没传的字段会被重置成默认值，本项目 `UpdateUserCommand` 的 `phone` 就有默认值 `未登记`），PATCH = 局部更新（只改传了的字段）。**选错方法的典型后果**：只想改邮箱却用 PUT 且漏传 phone → 手机号被清空。这不是前端小 bug，而是**数据损坏**。
+  - **四个方法的幂等性（面试高频）**：GET/PUT/DELETE 幂等（同样的请求打 N 次，服务端状态相同），POST 不幂等（打 N 次可能建 N 条）。这正是 REST 把“新增”和“编辑”分成不同方法的原因。
+- **Java / 后端对照视角 (Java Mapping)**：
+  | axios | Spring Boot | 备注 |
+  | :--- | :--- | :--- |
+  | `put<T>(url, body)` | `@PutMapping` + `@RequestBody` | 对应 `RestTemplate.put(url, body)`（**无返回值**）或 `exchange(...)`（要拿响应体时用）|
+  | `delete<T>(url)` | `@DeleteMapping("/{id}")` + `@PathVariable` | 对应 `restTemplate.delete(url)` |
+  | `get<T>(url, { params })` | `@GetMapping` + `@RequestParam` | 查询条件 |
+  | `post<T>(url, body)` | `@PostMapping` + `@RequestBody` | 新增（非幂等）|
+  - 一个很能体现差异的细节：Java 的 `RestTemplate.put` / `delete` **返回值就是 `void`**——这与前端把删除函数声明成 `Promise<void>` 是同一个设计直觉：**“没有产出”本身就应该被类型如实表达**。若在 Java 里写了 `UserVO vo = restTemplate.put(...)` 编译根本不通过，前端若能守住“签名 = 运行时值”，也不会掉进 `res.data.id` 的坑。
+  - 权限语义上还有一处强对应：PUT/DELETE 这类**写操作**在后端需要 `hasRole('ADMIN')` 才能放行（本项目 `_require_admin` 先判 401 再判 403），而前端隐藏按钮只是体验层——**前后端的职责分层不能因为“按钮看不见”而被混淆**。
+- **极简代码示范 (Code Demo)**：
+  ```ts
+  // ① 查询：条件走 params，无 body
+  const page = await httpClient.get<PageResult<ApiUser>>('/admin/users/page', { params });
+
+  // ② 新增：body 走第二个位置
+  const created = await httpClient.post<ApiUser>('/admin/users', cmd);
+
+  // ③ 编辑：路径参数标识资源 + body 承载整量更新（两个类型：入参 / 响应）
+  const updated = await httpClient.put<ApiUser>(`/admin/users/${id}`, cmd);
+
+  // ④ 删除：只有一个资源标识，第二个位置没有 body；用 await 表达“只关心成败”
+  await httpClient.delete<void>(`/admin/users/${id}`);
+
+  // ⑤ 进阶：删除但仍要带 config（如自定义超时 / 取消信号）时，第二个位置就是 config
+  await httpClient.delete(`/admin/users/${id}`, { timeout: 3000, signal });
+  ```
+  > 验证顺序建议：先只写 GET 分页（能登录后在 Network 面板看到请求带上 `Authorization` 头），再写 DELETE（用 `guest` 账号实测 **403**、用 admin 实测成功），最后写 PUT。**一次只加一个方法、每加一个就先点一遍界面**，比一次性写完四个再一起排错快得多。
+- **掌握标记**：[ ] 待主动回忆
+
+---
+
+### Q-AR-13: 前端 camelCase 与后端 snake_case 字段不一致时会怎样？为什么两边都“成功”却丢了数据？
+- **提问背景**：TASK-009 的表单里字段叫 `companyName`（前端 camelCase），而后端 Pydantic 模型叫 `company_name`（Python snake_case）。写映射时疑惑：“直接把 `companyName` 发过去不行吗？名字不一样又不会报错。”
+- **核心解答 (Answer)**：
+  - **现象（后端实测，两次请求都是 201 成功）**：
+    | 发送的字段 | HTTP | 返回的 `company.name` | 结论 |
+    | :--- | :---: | :--- | :--- |
+    | `"companyName":"CORP-X"` | **201** | `"研发中心"`（服务端默认值）| ❌ **字段被静默丢弃** |
+    | `"company_name":"CORP-Y"` | **201** | `"CORP-Y"` | ✅ 生效 |
+  - **根本原因：反序列化器默认“宽容”**
+    - **Pydantic v2**：默认行为是 `extra='ignore'` —— 请求体里多出来的未知字段**不报错、不提示、直接丢**；
+    - **Spring Boot + Jackson**：默认 `FAIL_ON_UNKNOWN_PROPERTIES=false` —— 同样静默忽略。
+    - 两者都是“容错优先”的工程选择（为了 API 向后兼容），代价是：**字段名写错时你收不到任何信号**。
+  - **为什么这是最难查的一类 Bug**：
+    1. **状态码是成功的**（201/200）→ 你第一反应不会怀疑字段名；
+    2. **前后端都不报错** → 浏览器 Network 面板里 payload 看着“有值”，后端日志里也“正常”；
+    3. **只有界面看不出来**（用户填的公司名总是空）→ 排查方向很容易跑偏到“前端没绑定”或“后端默认值覆盖了”。
+  - **诊断三步**（按顺序，成本从低到高）：
+    1. **看返回体**：POST 成功后 API 返回的**就是入库后的实体** —— 直接比对“我发的值”和“它回的值”是否一致（本例里 `研发中心` vs `CORP-X` 一眼可辨）；
+    2. **看 Swagger 模型**（`http://127.0.0.1:8000/docs`）：以后端定义的字段名为唯一真相；
+    3. **后端加严**（治本）：`model_config = ConfigDict(extra='forbid')` / Jackson 开启 `FAIL_ON_UNKNOWN_PROPERTIES` —— 让“多余字段”在**开发阶段直接报 422**，而不是上线后静默丢数据。
+  - **架构层面的出路（三种，按场景选）**：
+    | 方案 | 做法 | 评价 |
+    | :--- | :--- | :--- |
+    | ① 前端做映射（本项目采用）| 表单状态（camelCase）→ 请求体（snake_case）显式转换 | ✅ 把适配集中在 Repository / 映射函数一处；前端内部保持 camelCase |
+    | ② 后端配置别名 | Pydantic `Field(alias='companyName')` / Jackson `@JsonProperty` | 可行，但要让**所有**接口风格统一，否则前后端各记一套规则 |
+    | ③ 全链路统一风格 | 团队约定接口字段全用 camelCase（前端原生风格）| ✅ 最彻底，但属于**契约制定**层面，不是前端单方面能决定的 |
+  - **一个强相关的纪律**：字段名映射必须在**一层**完成（本项目放在 `toCreateCommand` / `toUpdateCommand` 里），
+    绝不能在组件的每个提交处写一下 —— 否则就变成“多处各自拼接”，漏一处就静默丢一个字段。
+- **Java / 后端对照视角 (Java Mapping)**：
+  | TS / 前端 | Java / 后端 |
+  | :--- | :--- |
+  | `UserFormState`（camelCase）| Controller 层的 Form / Command DTO |
+  | `company_name`（snake_case）| Entity / Pydantic 模型字段 |
+  | 映射函数 `toCreateCommand()` | `BeanUtils.copyProperties()` / MapStruct 的 `@Mapper` / 手写 Converter |
+  | Pydantic `extra='ignore'` | Jackson `FAIL_ON_UNKNOWN_PROPERTIES=false`（默认）|
+  | Pydantic `extra='forbid'` | Jackson `FAIL_ON_UNKNOWN_PROPERTIES=true` |
+  - 关键认知：**“字段名不同”在前端只是一个字符串，在跨语言联调中却是契约的一部分**；
+    Java 里两个类字段不同名是**编译错误**（编译期就能拦），而跨 HTTP 边界之后，**没有任何编译器在看着你** —— 只能靠显式映射 + “看返回体”的习惯来兜底。
+- **极简代码示范 (Code Demo)**：
+  ```ts
+  // ✅ 映射只在一处发生：表单状态（前端风格）→ 请求体（后端风格）
+  function toCreateCommand(form: UserFormState): CreateUserCommand {
+    return {
+      name: form.name.trim(),
+      username: form.username.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim() || '未登记',
+      company_name: form.companyName.trim() || undefined,  // ← camelCase → snake_case
+    };
+  }
+
+  // ❌ 反面：直接展开表单状态（companyName 会被服务端静默丢弃）
+  await createAdminUser({ ...form } as unknown as CreateUserCommand);
+  ```
+  > 调试口诀：**“提交成功不等于保存成功 —— 对比你发出去的值和它回给你的值。”**
+- **掌握标记**：[ ] 待主动回忆
+
 

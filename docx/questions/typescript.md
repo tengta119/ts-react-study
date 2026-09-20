@@ -219,3 +219,75 @@
   // const d = { user: u };       // ❌ u 未定义（顺便演示：这里右值必须是已存在的变量）
   ```
 - **掌握标记**：[ ] 待主动回忆
+
+### Q-TS-10: JS/TS 的函数调用是“值传递”还是“引用传递”？为什么 React 的 deps 比较等价于 Java 的 `==` 而不是 `equals()`？
+- **提问背景**：写下 `useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS)` 时冒出这个疑问；且常听说“JS 里对象是引用传递”，但 Java 里又说“Java 只有值传递”——两边到底谁说得对？
+- **核心解答 (Answer)**：
+  - **结论：两者一样，都只有一种：按值传递（pass-by-value）。**
+    所谓“JS 对象是引用传递”是**误称**；准确名称是 **call-by-sharing（按共享传递）**：传递的是“引用的拷贝（堆地址的拷贝）”。
+  - **判定“有没有引用传递”的决定性实验**：在函数里**重新赋值参数**，看调用方的变量变不变。
+    ```js
+    function reassignObject(o) { o = { name: '新对象' }; }   // 只是让局部名字指向别处
+    function mutateObject(o)   { o.name = '被就地改了'; }   // 改的是堆上那个对象
+    ```
+    **实测输出（Node 实跑）**：
+    | 实验 | 结果 | 说明 |
+    | :--- | :--- | :--- |
+    | `reassignObject(obj)` 后 | `obj` **没变** | ✅ 若是引用传递，这里必变 → **不存在引用传递** |
+    | `mutateObject(obj)` 后 | `obj.name` **变了** | 两个名字指向同一个堆对象（共享）|
+  - **底层：变量里到底存了什么**
+    | 类型 | 变量里存的是 | 传参时拷贝的是 |
+    | :--- | :--- | :--- |
+    | 原始类型 `string/number/boolean/null/undefined/symbol/bigint` | **值本身** | 值 → 两边完全独立 |
+    | 对象 / 数组 / 函数 | **堆地址（引用）** | 地址 → 两个名字指向同一个对象 |
+    > 所以“传对象”并不是“把对象传进去”，而是“把门牌号抄了一份给对方”。对方按号找到同一间房。
+  - **真正有引用传递的语言**：C++ 的 `T&`、C# 的 `ref`/`out`、Pascal 的 `var`。**Java 和 JS 都没有这种机制**。
+  - **回到那行代码**：`searchInput: string`、`SEARCH_DEBOUNCE_MS: number` 全是原始类型 → 纯值拷贝，与传递语义无关（字符串还天然不可变）。
+    真正受到影响的是**当 `T` 是对象时**：`useDebouncedValue<T>` 内部**完全有能力就地修改传进来的对象**，而 `T` 这个类型参数**不会给你任何保护**（泛型是编译期概念，运行时抹除）。要约束得用 `Readonly<T>`（且也只是编译期）。
+  - **为什么这件事在 React 里是生死攸关的（三条连锁）**：
+    1. **deps 的比较用的是 `Object.is` ≈ Java 的 `==`，不是 `equals()`**：
+       ```js
+       Object.is({ id: 1 }, { id: 1 })  // false  ← 内容相同 ≠ 引用相同（实测）
+       Object.is(a, a)                  // true   ← 同一个引用才相等
+       ```
+       → 这就是“内联对象/函数/数组放进 deps 会导致 effect 每轮重跑”的根本原因。
+    2. **“不可变更新”原则的底层根因**：
+       ```tsx
+       setTodos((prev) => { prev.push(item); return prev; }); // ❌ 同一个引用
+       // → Object.is(新值, 旧值) === true → React 认为“状态没变” → 不重渲染！
+       setTodos((prev) => [...prev, item]);                    // ✅ 新引用 → 重渲染
+       ```
+       上一代教程只告诉你“要不可变更新”，现在知道为什么了：**React 的变更检测建立在引用比较上。**
+    3. **“Props 只读”只是契约，不是语言机制**：因为传的是地址拷贝，组件内部**完全能做到** `props.user.name = 'x'`（并影响父组件看到的同一个对象）。TS 只在编译期报错，**运行时无任何保护**。
+  - **附带澄清：每轮渲染都是一个新闭包**（陈旧闭包的来源）
+    函数组件每渲一次就是**重新执行一次函数**，本次执行捕获的是**这一次**的变量绑定（原始值快照 / 对象引用快照）。所以“哪一版的闭包还活着”直接由 deps 决定 —— 这与 Q-HK-01/Q-HK-09 是同一件事的两面。
+- **Java / 后端对照视角 (Java Mapping)**：
+  | JS / TS | Java |
+  | :--- | :--- |
+  | 原始类型传参 | 基本类型 `int/long`：值拷贝 |
+  | 对象传参 | 对象引用（引用的**拷贝**）| 两侧行为完全同构 |
+  | `o = {...}` 不影响调用方 | `void f(List l) { l = new ArrayList<>(); }` 不影响调用方 |
+  | `o.name = 'x'` 影响调用方 | `l.add(...)` 影响调用方 |
+  | `const` | `final`（**只锁引用重赋值，不锁对象内容**）|
+  | `Object.is`（对象）| `==`（引用比较）；内容相等得用 `equals()` |
+  | TS `Readonly<T>` | Guava `ImmutableList`（但一个是编译期约束、一个是运行时保证）|
+  - 一个关键推论：**Java 世界里“用不可变对象做缓存 key / Map key”的习惯，直接对应 React 里“必须返回新引用”的纪律**：两者都是因为集合/变更检测依赖 `hashCode`/`==` 这类基于引用的判定。
+- **极简代码示范 (Code Demo)**：
+  ```tsx
+  // ① 你那行调用：两个参数都是原始类型 → 纯值拷贝
+  const debouncedSearch = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
+
+  // ② 当 T 是对象时：泛型不提供任何保护（这是“Props 只读靠约束”的原因）
+  function useDebouncedValue<T>(value: T, delay = 300): T {
+    // value.foo = 'x'  ❌ 编译器可能不报错（取决于 T），运行时一定能改到调用方的对象
+    ...
+  }
+  useDebouncedValue<{ name: string }>(someObj, 300); // T 是对象 → 传的是地址拷贝
+
+  // ③ 在 React 里，“引用”就是变更检测的依据
+  const sameRef = todos;              // Object.is(sameRef, todos) === true
+  const newRef  = [...todos];         // Object.is(newRef, todos)  === false → 触发重渲染
+  ```
+- **掌握口诀**：
+  **“赋值看引用，比较看地址；重赋值不影响外面，改属性会穿透 —— 能重赋值穿透的才叫引用传递。”**
+- **掌握标记**：[ ] 待主动回忆

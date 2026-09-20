@@ -4,6 +4,7 @@ import { AuthProvider } from '../TASK-008-auth-guard/AuthProvider';
 import { AppHeader } from '../TASK-008-auth-guard/components/AppHeader';
 import { ProtectedRoute } from '../TASK-008-auth-guard/components/ProtectedRoute';
 import { NotFoundPage } from '../TASK-006-router/pages/NotFoundPage';
+import { LoginPage } from '../TASK-008-auth-guard/pages/LoginPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { UserDetailPage } from './pages/UserDetailPage';
@@ -18,6 +19,7 @@ import { UserDetailPage } from './pages/UserDetailPage';
  *
  * 路由表：
  *   /            → 重定向到 /dashboard
+ *   /login       → 登录页（公开；登录后回到 /dashboard）
  *   /dashboard   → 仪表盘（🔒）
  *   /users       → 用户管理 CRUD（🔒）
  *   /users/:id   → 用户详情（🔒）
@@ -65,8 +67,7 @@ export const AdminApp: React.FC = () => {
                 flexDirection: 'column',
                 gap: '6px',
               }}
-            >
-              <div style={{ color: '#64748b', fontSize: '12px', padding: '4px 12px 8px' }}>
+            >              <div style={{ color: '#64748b', fontSize: '12px', padding: '4px 12px 8px' }}>
                 管理菜单
               </div>
               <NavLink to="/dashboard" style={sideLinkStyle}>
@@ -89,6 +90,10 @@ export const AdminApp: React.FC = () => {
             >
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                {/* 登录页必须存在：ProtectedRoute 未登录时会 <Navigate to="/login" />，
+                    若路由表里没有 /login，就会被 path="*" 的 404 页面接走 —— 看起来像“守卫坏了”。
+                    redirectTo="/dashboard" 是 TASK-009 给 LoginPage 加的参数（管理台没有 /profile）。 */}
+                <Route path="/login" element={<LoginPage redirectTo="/dashboard" />} />
                 <Route
                   path="/dashboard"
                   element={
