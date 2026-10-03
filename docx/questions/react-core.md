@@ -414,3 +414,54 @@
 
 
 
+
+---
+
+### Q-RC-14: Counter 组件函数返回的结果为什么看起来是 HTML？
+- **提问背景**：组件的 return 中写着 div、button 等标签，容易理解为返回 HTML 字符串。
+- **核心解答 (Answer)**：
+  - **现象**：return 中的标签是 JSX，外观类似 HTML，但可以在花括号中使用 JavaScript 表达式，并用 onClick 等属性传递函数。
+  - **原因**：React 用 JSX 方便地描述 UI 结构。Counter 此处返回的是 React 元素，即界面的描述对象，并非 HTML 字符串或真实 DOM 节点。
+  - **底层机制**：构建工具把 JSX 转换成 JavaScript 调用；例如 return <div>{count}</div> 可概念性理解为返回包含 type: 'div'、props: { children: count } 的元素对象（省略内部字段）。React DOM 根据描述创建或更新浏览器真实 DOM，浏览器再显示界面。重新渲染产生新的界面描述，并不意味着整个 DOM 全部重建。
+  - **Java 类比**：类似 Java 方法返回一个描述 UI 的对象，再由渲染器生成页面；不同于 Controller 直接返回 '<div>0</div>' 这样的字符串。React 元素描述保留结构、属性及事件函数等信息。
+  - **总结**：组件返回界面的描述；React DOM 将描述落实为 DOM；浏览器显示页面。本例 return 的是 JSX 产生的 React 元素。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-RC-15: 什么是 React DOM？它与 React、浏览器 DOM 有什么区别？
+- **提问背景**：理解组件返回界面描述后，进一步理解是谁将描述显示到浏览器页面上。
+- **核心解答 (Answer)**：
+  - **现象**：Counter 返回 React 元素描述，页面却出现了真实的按钮和文本。
+  - **原因**：React DOM 是 React 面向浏览器 DOM 的渲染库，负责将 React 界面描述落实为真实 DOM 的创建和更新。
+  - **底层机制**：DOM 是浏览器中的文档对象树，div、button、文本等对应节点。项目 main.tsx 从 react-dom/client 导入 createRoot，使用 document.getElementById('root') 找到挂载容器，再调用 root.render(...) 渲染应用。State 更新后，React 处理组件的新渲染结果，React DOM 将需要的 DOM 改动提交给浏览器；浏览器负责布局和绘制。
+  - **Java 类比**：React 元素类似页面描述 DTO；React DOM 类似把 DTO 转换为浏览器节点的渲染适配器；DOM 是生成出的节点树。类比用于说明职责，不代表其内部实现与 Java MVC 相同。
+  - **总结**：React 提供组件和状态等核心能力；React DOM 提供浏览器渲染能力；DOM 是浏览器实际维护的页面结构。
+- **掌握标记**：[ ] 待口试验证
+ 
+---
+
+### Q-RC-16: FormEvent 被弃用后，表单提交事件应该用什么类型？
+- **提问背景**：TASK-002 TodoList.tsx 第 38 行的 e?: React.FormEvent 出现 TS6385。
+- **核心解答 (Answer)**：
+  - **现象**：当前安装的 @types/react 19.3.0 将 FormEvent 标记为 deprecated，这是类型声明的弃用提示。
+  - **原因**：FormEvent 是笼统的历史类型，应按实际事件选择 ChangeEvent、InputEvent、SubmitEvent 或 SyntheticEvent。当前函数绑定于 form 的 onSubmit，推荐 React.SubmitEvent<HTMLFormElement>。
+  - **底层机制**：React 事件是 SyntheticEvent 包装；React.SubmitEvent 对提交事件提供具体类型，HTMLFormElement 指定 currentTarget 为表单。它与浏览器全局 SubmitEvent 类型不同。preventDefault() 用于阻止传统表单提交的默认行为。当前函数只由 onSubmit 调用，事件一定传入，可将 e 改为必填并直接调用 e.preventDefault()；若确有无参数调用，再保留可选参数与判断。
+  - **Java 类比**：类似将宽泛的事件入参改成专门的提交事件 DTO；泛型则声明事件绑定的元素类型。此类比仅用于理解静态契约，TS 类型在运行时会被擦除。
+  - **总结**：此处改为 e: React.SubmitEvent<HTMLFormElement>；输入框 onChange 使用 React.ChangeEvent<HTMLInputElement>；通用事件才考虑 React.SyntheticEvent。旧类型库若尚无 SubmitEvent，可以使用 React.SyntheticEvent<HTMLFormElement>。
+- **参考资料**：[React 类型声明源码](https://github.com/DefinitelyTyped/DefinitelyTyped/blob/master/types/react/index.d.ts)、[React form 文档](https://react.dev/reference/react-dom/components/form)。以本项目已安装的类型声明为直接依据。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-RC-17: if (e) e.preventDefault(); 在 Todo 表单中有什么用？
+- **提问背景**：TASK-002 的 handleAddTodo 使用可选事件参数 e，并在添加待办前执行此行。
+- **核心解答 (Answer)**：
+  - **现象**：点击 submit 按钮或在输入框中回车会触发表单提交；如果未阻止默认行为，当前传统 form 会导航并重新加载页面，组件内存中的待办状态会重新初始化。
+  - **原因**：form 自带浏览器默认提交行为。绑定 onSubmit 只是在提交时执行自定义函数，不会自动取消默认行为。
+  - **底层机制**：if (e) 检查事件是否存在，因为 e?: ... 允许不传参数，此时 e 为 undefined；无大括号时条件只控制紧随其后的这一条语句。e.preventDefault() 取消提交事件的默认动作，后面的校验、setTodos、setInputText 仍会继续执行；它不是 return，也不会自动发起后端 API 请求。
+  - **Java 类比**：if (e) 类似检查可选参数是否非 null 后再调用方法（JS 此处使用真假值判断）；preventDefault 类似通知框架取消默认处理，让自定义逻辑接管后续业务，并非退出方法。
+  - **总结**：有事件时阻止浏览器默认提交，然后继续添加待办。当前只有 onSubmit 调用此函数，可以将事件改成必填并直接调用 e.preventDefault()。
+- **参考资料**：[React：阻止默认行为](https://react.dev/learn/responding-to-events#preventing-default-behavior)。
+- **掌握标记**：[ ] 待口试验证
+

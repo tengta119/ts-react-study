@@ -227,3 +227,40 @@
   //                            → 逐元素全相等 → 【effect 不执行，什么都不做】
   ```
 - **掌握标记**：[ ] 待主动回忆
+ 
+---
+
+### Q-SR-11: TASK-001 中的 step 与 isInvalidStep 有什么区别？
+- **提问背景**：两者都用 const 声明，但 step 来自 useState，isInvalidStep 来自表达式。
+- **核心解答 (Answer)**：
+  - **现象**：step 是 number 类型的步长；isInvalidStep 是 boolean 类型的有效性判断结果。step 为 1 时结果为 false，为 0、负数或 NaN 时结果为 true。
+  - **原因**：step 是 React 管理的 State；isInvalidStep 是根据当前 step 计算出来的派生值，无需独立保存为 State。
+  - **底层机制**：useState(1) 的 1 是初始值。setStep(nextStep) 请求更新；React 再次执行组件函数时，useState 返回更新后的 step，随后重新执行判断表达式，得到新的 isInvalidStep。普通变量不会独立监听 step，也不会主动触发渲染。
+  - **const 的含义**：当前一次组件函数执行中，两个变量都不能重新赋值；下次渲染是新的函数执行，会创建本次渲染的新绑定。
+  - **Java 类比**：类似每次执行方法时取出当前步长 final double step，再计算 final boolean isInvalidStep；React 额外负责跨渲染保存状态和调度组件执行。
+  - **总结**：保存需要记住的数据作为 State；能由现有 State 直接计算的结果，在渲染时计算即可，避免保存两份需要同步的数据。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-SR-12: State 更新时组件如何重新计算？组件里的方法也会重新调用吗？
+- **提问背景**：理解重新渲染后，容易把组件函数重新执行与所有内部函数自动调用混为一谈。
+- **核心解答 (Answer)**：
+  - **现象**：调用 setCount 请求改变状态后，React 通常会安排重新渲染，重新调用 Counter 组件函数，获得新的界面描述。多次状态更新可能被批处理；相同状态值可能使 React 跳过更新。
+  - **原因**：组件是函数，新的 State 需要通过再次执行函数参与表达式计算和 JSX 构造。useState 在后续渲染返回 React 保存的当前状态，不会每次把它重置为初始值。
+  - **底层机制**：组件函数体中的顶层表达式会再次执行，例如 isInvalidStep 的判断；内部函数定义会再次求值，通常产生新的函数对象，但定义函数不等于调用函数。handleIncrement、handleDecrement、handleReset 在当前例子中作为事件回调交给按钮，点击对应按钮时才调用；getCountColor() 明确写在 JSX 的 style 表达式中，因此每次执行到该表达式都会调用。
+  - **Java 类比**：执行一个 Java 方法时，方法里的局部计算会执行；创建一个 Runnable 或 lambda 不会自动执行其函数体，需要调用 run()。React 额外负责跨渲染保存 State。
+  - **总结**：重新渲染是组件函数再次执行；内部函数是否执行，取决于是否有调用表达式或是否由事件等机制触发。函数创建与函数调用是两个动作。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-SR-13: style 的 color 中把 getCountColor() 改成 getCountColor，会自动调用吗？
+- **提问背景**：用 Counter 的颜色表达式验证函数引用与函数调用的区别。
+- **核心解答 (Answer)**：
+  - **现象**：color: getCountColor() 会在组件执行到该表达式时调用函数，获得颜色字符串；color: getCountColor 只是把函数对象作为属性值，不会因此执行函数体。
+  - **原因与机制**：括号表示调用。组件重新执行会重新创建内部函数，但引用函数不等于调用函数。React 不会因为 style.color 收到函数就替开发者调用它。
+  - **类型约束**：style.color 需要合法的 CSS 颜色值，函数引用不符合其类型，正常的 TS 检查会报错，因此删除括号不是有效的颜色写法。
+  - **Java 类比**：把 Supplier<String> 对象传给需要 String 的参数不符合类型；需要先调用 supplier.get() 得到字符串。
+  - **总结**：onClick 接收事件回调，所以传函数；color 接收颜色值，所以调用函数获取结果。调用时机取决于使用位置及接收方的契约。
+- **掌握标记**：[ ] 待口试验证

@@ -43,7 +43,7 @@ export const UserForm: React.FC = () => {
   };
 
   // TODO: 表单提交处理
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const newErrors: { username?: string; email?: string } = {};

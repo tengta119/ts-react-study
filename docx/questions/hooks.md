@@ -458,3 +458,68 @@ useEffect(() => { if (debounced !== value) setDebounced(value); }, [value, debou
   - [Lifecycle of Reactive Effects](https://react.dev/learn/lifecycle-of-reactive-effects)（start/stop 模型、“Then React will run the Effect”、`Object.is` 与 “previous render”）
   - [useEffect 参考文档](https://react.dev/reference/react/useEffect)（deps 规则、StrictMode 额外一轮 setup+cleanup）
 - **掌握标记**：[ ] 待主动回忆
+---
+
+### Q-HOOK-TODO-INIT: 为什么 useState([含 Date.now() 的初始数据]) 会触发 purity 错误？
+- **提问背景**：TASK-002 的预置待办在 useState 数组参数中调用 Date.now()，触发 react-hooks/purity。
+- **核心解答 (Answer)**：
+  - **现象**：ESLint 提示 Cannot call impure function during render；Date.now 本身没有被弃用。
+  - **原因**：Date.now 读取外部时钟，同样的输入在不同时间会产生不同输出，不满足渲染计算所要求的稳定性。
+  - **底层机制**：JavaScript 在调用 useState 前会先求值数组参数。因此每次组件执行，数组中的 Date.now 都会执行，即使 React 在后续渲染忽略初始参数，也不会阻止参数表达式求值；这不会自动重置已保存的 todos。初始化时间可通过 useState<TodoItem[]>(() => [原有条目]) 保存，让 React 按初始化需要调用函数，后续普通重渲染不重新计算。官方纯度文档也展示 useState(() => new Date())。开发模式 StrictMode 可能调用初始化函数两次并忽略其中一次结果，因此不能用它发送请求、修改外部变量或保证恰好一次执行。
+  - **Java 类比**：useState(buildInitialTodos()) 类似先执行 Java 方法生成参数再调用另一方法；useState(() => buildInitialTodos()) 类似传入 Supplier，由接收方决定何时调用。React 函数组件会在重渲染时重新执行，不能把函数体理解成 Java 构造器。
+  - **总结**：本例把 useState 的数组参数包成 () => [...] 即可。handleAddTodo 内的 Date.now 和 crypto.randomUUID 在提交事件发生时执行，位置合适；应在事件中生成值，再传给纯的 state updater。
+- **参考资料**：[React 纯度与初始化示例](https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent)、[useState 初始化函数](https://react.dev/reference/react/useState#avoiding-recreating-the-initial-state)。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-HOOK-INIT-VALUE: useState 什么时候直接传值，什么时候传初始化函数？
+- **提问背景**：学员询问 useState({}) 与 useState(() => {}) 的选择。
+- **核心解答 (Answer)**：
+  - **现象**：useState 可直接接收初始值，也可接收返回初始值的函数。两种写法均只用于初始化，后续更新通过 setter。
+  - **原因**：简单的固定值（0、空字符串、false、空数组、小对象）通常直接传入；需要较多计算的初始化、读取挂载时的时间等适合传初始化函数。选择与状态是对象还是数组无关。
+  - **底层机制**：直接参数的表达式每次组件执行都会求值，但 React 后续忽略初始值；传函数时，React 在初始化期间调用并保存返回值，后续普通重渲染不调用。开发 StrictMode 可能调用两次，并忽略其中一个结果；重新挂载会重新初始化。初始化函数不应用于发请求或修改外部数据。
+  - **Java 类比**：传 DTO 实例与传 Supplier<DTO> 的区别；前者由调用方先构造，后者由接收方按初始化需要调用。
+  - **总结**：简单值直接传，需要初始化计算则传函数。useState({}) 的初始值是空对象；useState(() => {}) 的函数体为空、返回 undefined，并非空对象。返回对象应写 useState(() => ({}))，或者 useState(() => { return {}; })。函数初始化与 setState(prev => ...) 的更新函数职责不同。
+- **参考资料**：[useState：避免重新创建初始状态](https://react.dev/reference/react/useState#avoiding-recreating-the-initial-state)。
+- **掌握标记**：[ ] 待口试验证
+
+
+---
+
+### Q-HOOK-ASYNC-EFFECT: 为什么 Effect 调用 async 请求函数仍触发 set-state-in-effect？
+- **提问场景**：2026-10-03，TASK-004 的 UserListApi.tsx 第 59 行调用 fetchUsers()，ESLint 提示同步更新状态。
+- **核心解答 (Answer)**：
+  - **现象**：标红的是 Effect 中的 fetchUsers()，实际触发点是函数内部、首个 await 之前的 setLoading(true) 和 setError(null)。
+  - **原因**：async 不会把整个函数自动放到后台执行；调用后，首个 await 之前的代码仍同步执行。因此 Effect 间接调用了同步 setter。
+  - **底层机制**：请求返回后的状态更新用于同步外部数据，适合放在异步响应处理流程中。Effect 一开始就设置加载状态则可能制造额外渲染；此处初始 loading 已经是 true、error 已经是 null，首次加载不需要重复设置。相同值可能被 React 跳过更新，规则报错不等于本次一定发生额外渲染或无限循环。
+  - **Java 类比**：JavaScript async 更接近返回 CompletableFuture 的方法，不等同于 Spring @Async 的线程调度；返回异步结果不代表方法开头的语句异步执行。
+  - **总结与自主修复方向**：拆开首次加载和点击刷新。Effect 首次加载直接发请求，在响应后更新数据、错误和 loading；刷新/重试事件中保留开始时的 setLoading(true)、setError(null)。可将只负责 HTTP 的请求函数放在组件外共享，Effect 内定义首次加载流程，事件处理器负责刷新流程。Effect 补充 cleanup，忽略过期响应；成功、失败、finally 的状态更新都需要受保护。不要用 setTimeout、空 await 或关闭规则来掩盖职责问题。不要简单把每次渲染重新创建的 fetchUsers 加入依赖数组，否则可能导致反复请求。
+- **参考资料**：[React set-state-in-effect 规则](https://ja.react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect)、[React Hooks ESLint 推荐规则](https://react.dev/reference/eslint-plugin-react-hooks)。
+- **掌握标记**：[ ] 待自主修改与口试验证
+
+---
+
+### Q-HOOK-LOAD-ENTRY: 如何区分首次加载 Effect 与刷新、重试事件？
+- **提问场景**：2026-10-03，TASK-004 拆分请求入口时，学员询问如何区分首次加载和手动请求。
+- **核心解答 (Answer)**：
+  - **现象**：当前 useEffect 和两个按钮的 onClick 都调用 fetchUsers，所以函数内部无法仅凭名字区分调用来源。
+  - **原因**：区分依据是触发来源。首次加载由组件挂载后的 Effect setup 发起；刷新和重试由用户点击事件处理器发起。两者访问的 API 可以完全相同。
+  - **底层机制**：无需增加 isFirstLoad 状态；用不同入口函数表达职责。当前固定地址的首次加载流程定义在 Effect 内，依赖数组保持为空；点击流程定义为事件处理器，按钮通过 onClick 引用该处理器。初始 loading=true、error=null 已表达首次加载；点击时才需要显式设置加载态与清空旧错误。共享请求函数可放在组件外，返回 Promise<ApiUser[]>，只负责 fetch、HTTP 检查和 JSON 读取，不更新 React state；两种入口在异步结果返回后各自处理 UI 状态。
+  - **Java 类比**：两个调用入口类似启动回调和按钮对应的请求入口；都可调用同一个查询服务，但入口承担不同的流程职责。React Effect 不是严格的 @PostConstruct：重新挂载会重新执行，开发 StrictMode 还会额外执行 setup/cleanup 验证。
+  - **总结**：按谁触发来划分，不按请求次数、URL、users 是否为空或 loading 值猜测。刷新和重试可共用事件处理器，因为它们都是用户主动重新请求。首次加载 Effect 要配套 cleanup，防止失效响应更新状态。
+- **掌握标记**：[ ] 待自主修改与口试验证
+
+---
+
+### Q-HOOK-ASYNC-LINT-LIMIT: 移走 await 前的 setter 后，为什么仍报 set-state-in-effect？
+- **提问场景**：2026-10-03，TASK-004 已把 setLoading(true)、setError(null) 移至 refreshUsers，Effect 调用 fetchUsers 仍被标红。
+- **核心解答**：
+  - **现象**：教练通过当前文件的 ESLint 检查复现了报错；原有 await 前的同步 setter 已被移除。
+  - **原因与底层机制**：静态规则对组件作用域中异步函数的间接调用存在分析限制，不能把报错直接理解为 await 后的 setter 仍同步执行。React 仓库有同类异步函数误报报告，但该报告标为未确认，不代表维护者已确认本项目的具体原因。
+  - **本地证据**：只移除 finally，报错仍在；保留原有按钮流程，在 Effect 内定义并调用局部 async 首次加载函数，使用内存 lintText 验证后无诊断。没有改动学员源文件，也没有验证运行时请求或完整验收。
+  - **Java 类比**：类似 IDE 静态检查无法完整推导 CompletableFuture 调用链；静态诊断和实际执行时序需要分别验证。
+  - **自主修复方向**：Effect 内定义 loadInitialUsers，并调用它，外层 Effect 回调保持同步；后续提取组件外只负责 HTTP 的 requestUsers 供两个入口共享，避免重复请求代码。首次加载添加 cleanup，保护所有异步结果更新。
+  - **额外审查**：重试按钮仍绑定 fetchUsers，应绑定 refreshUsers，否则不清除旧错误、不恢复加载态；refreshUsers 标记 async 却不 await 或 return fetchUsers，其自身 Promise 不代表请求结束，可去掉 async 并用 void 表达无需等待，或 await 请求。
+- **参考资料**：[React 异步函数误报报告 #34905](https://github.com/react/react/issues/34905)。
+- **掌握标记**：[ ] 待自主修复与验证

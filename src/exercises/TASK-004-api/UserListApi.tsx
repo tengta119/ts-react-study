@@ -32,8 +32,6 @@ export const UserListApi: React.FC = () => {
 
   // 触发重新拉取的标记或函数
   const fetchUsers = async () => {
-    setLoading(true);
-    setError(null);
     try {
       // 演示用公开测试接口，日后可替换为你的 Spring Boot 后端接口 (如 http://127.0.0.1:8000/api/users)
       const res = await fetch('http://127.0.0.1:8000/api/users');

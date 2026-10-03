@@ -23,7 +23,7 @@ export type FilterStatus = 'all' | 'active' | 'completed';
 
 export const TodoList: React.FC = () => {
   // TODO: 声明 todos 状态列表
-  const [todos, setTodos] = useState<TodoItem[]>([
+  const [todos, setTodos] = useState<TodoItem[]>(() => [
     { id: '1', text: '理解 React 状态不可变性', completed: true, createdAt: Date.now() },
     { id: '2', text: '完成 TodoList 自主编码', completed: false, createdAt: Date.now() },
   ]);
@@ -35,7 +35,7 @@ export const TodoList: React.FC = () => {
   const [filter, setFilter] = useState<FilterStatus>('all');
 
   // TODO: 实现添加待办
-  const handleAddTodo = (e?: React.FormEvent) => {
+  const handleAddTodo = (e?: React.SubmitEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
     if (!inputText.trim()) return;
     const newTodo: TodoItem = {
