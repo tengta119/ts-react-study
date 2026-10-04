@@ -523,3 +523,62 @@ useEffect(() => { if (debounced !== value) setDebounced(value); }, [value, debou
   - **额外审查**：重试按钮仍绑定 fetchUsers，应绑定 refreshUsers，否则不清除旧错误、不恢复加载态；refreshUsers 标记 async 却不 await 或 return fetchUsers，其自身 Promise 不代表请求结束，可去掉 async 并用 void 表达无需等待，或 await 请求。
 - **参考资料**：[React 异步函数误报报告 #34905](https://github.com/react/react/issues/34905)。
 - **掌握标记**：[ ] 待自主修复与验证
+
+---
+
+### Q-HOOK-FETCH-IN-RENDER: 为什么首次请求不能直接在组件函数顶层调用 fetchUsers？
+- **提问场景**：2026-10-04，TASK-004 学员询问首次加载请求放在 useEffect 而非组件函数顶层的原因。
+- **核心解答 (Answer)**：
+  - **现象**：组件顶层调用 fetchUsers，会在每次组件函数执行时发送请求；更新用户列表、加载状态、搜索关键字或父组件重渲染都可能使组件再次执行。
+  - **原因**：组件函数负责根据当前 props/state 描述 UI，渲染应保持纯净。发起 HTTP 请求是外部副作用，async 不会阻止请求在渲染期间启动：await fetch(url) 会先调用 fetch 再暂停。
+  - **底层机制**：请求返回后 setUsers(data) 更新状态，引起再次渲染；顶层请求再次启动，形成潜在的请求循环。res.json 通常产生新的数组引用，内容相同不代表 Object.is 相同。请求还可能来自被 React 放弃的渲染。useEffect 将首次加载安排到提交之后，空依赖数组表示普通重渲染不重新执行该 Effect；重新挂载会再次执行，开发 StrictMode 会额外执行 setup/cleanup，因此不能描述成全程只执行一次。Effect 需 cleanup 忽略过期响应或取消请求。
+  - **Java 类比**：组件渲染类似按输入生成 View；若每次生成 View 都执行查询，再由结果触发生成 View，就可能反馈循环。Effect 可作为提交后同步外部数据的入口，但不能等同于严格只执行一次的 @PostConstruct。
+  - **总结**：首次加载由 Effect 同步外部数据，用户主动刷新由事件处理器触发；无需一律放进 Effect。定义 fetchUsers 函数不发送请求，调用 fetchUsers() 才启动请求。已有组件作用域 async 调用的 ESLint 分析限制，概念解释不代表原代码已通过 lint，修复按此前记录的 Effect 内局部首次加载函数及共享 HTTP 函数方向推进。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-HOOK-EFFECT-ASYNC-RETURN: Effect 调用 async 函数后，会不会继续向后执行？
+- **提问场景**：2026-10-04，学员确认 fetchUsers 在 await 暂停后，调用它的 Effect 回调是否继续执行。
+- **核心解答 (Answer)**：
+  - **现象**：会继续执行。Effect 回调并未 await fetchUsers，拿到 Promise 后就执行自己的后续语句，直到回调结束。
+  - **原因**：Effect 回调和 fetchUsers 是两个函数，各自有自己的执行进度。被调用函数暂停不等于调用者暂停；Effect 回调完成不等于请求完成，也不取消请求。
+  - **底层机制**：fetchUsers 在首个 await 前同步执行，随后暂停并返回 Promise；Effect 回调继续并隐式返回 undefined。React 不会自动等待该 Promise。网络结果可用后，通过事件循环与微任务恢复 fetchUsers，执行状态更新；setState 安排后续渲染，不需要重新执行已结束的 Effect 回调。空依赖数组使普通重渲染不重新运行 Effect。若 Effect 返回 cleanup 函数，React 保存它，之后按清理时机调用，而非回调结束即调用。
+  - **Java 类比**：类似调用返回 CompletableFuture 的服务方法，不调用阻塞等待就继续当前流程；结果就绪后执行异步后续逻辑。JS 不意味着后台线程执行函数体。
+  - **总结**：Effect 负责启动同步流程，并可返回清理函数；async 请求函数负责异步后续。不要把 Effect 回调直接改为 async，也不要 return fetchUsers()，否则返回 Promise，不符合 Effect 的 undefined/cleanup 返回约定。使用同步外层回调和内部 async 请求流程；该概念与此前 ESLint 对间接 async 调用的分析限制是不同问题。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-HOOK-EFFECT-PURPOSE: React 中 useEffect 有什么用？
+- **提问场景**：2026-10-04，学员在 TASK-004 理解异步执行顺序后，询问 useEffect 的核心用途。
+- **核心解答 (Answer)**：
+  - **现象**：React 组件既要描述 UI，也可能需要与服务器、浏览器事件、定时器或第三方组件交互。
+  - **原因**：组件渲染应根据 props/state 计算 JSX；对外部系统的操作有副作用，不适合在组件函数执行期间直接启动。渲染可能被重复执行或放弃，渲染执行不等于最终提交。
+  - **底层机制**：useEffect 声明在提交后执行的外部同步逻辑。首次挂载执行 setup；以后按 Object.is 比较依赖元素，变化时先清理旧同步，再启动新同步；卸载时清理。没有依赖数组时每次提交后执行；空数组时普通重渲染不重跑，但重新挂载以及开发 StrictMode 的额外 setup/cleanup 检查仍会执行。清理函数由 React 在相应时机调用，不是 Effect 回调结束就调用。
+  - **Java 类比**：可理解为 View 提交后建立外部连接或订阅的同步入口，并由框架管理资源清理；不能简单等同于 @PostConstruct 或组件生命周期钩子的集合。
+  - **总结**：组件描述界面，Effect 同步外部系统，事件处理器响应用户动作。TASK-004 首次进入页面的请求适合放在 Effect；按钮刷新适合放在点击处理器；按 keyword 过滤 users 是纯计算，在渲染中直接计算，不需要 Effect。useEffect 不会自动等待 async 请求，不创建后台线程，外层回调应返回 undefined 或 cleanup。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-HOOK-EFFECT-TRIGGER-TIMING: useEffect 什么时候触发，什么时候执行？
+- **提问场景**：2026-10-04，学员进一步区分 useEffect 的触发条件与回调执行时机。
+- **核心解答 (Answer)**：
+  - **现象**：组件渲染时会执行 useEffect 这个 Hook 调用，但传入的 Effect 回调不在该位置立即执行。
+  - **原因**：渲染用于计算 UI，React 先完成提交，再执行需要运行的 Effect。依赖数组决定本次提交后是否需要执行，并不是组件执行到 Hook 就执行回调。
+  - **底层机制**：首次挂载提交后执行 setup；之后无依赖数组则每次提交后执行，空数组则普通重渲染不重新执行，有依赖数组则按 Object.is 逐项比较前后值，有变化时清理旧 Effect，再执行新 Effect。卸载时执行 cleanup，不启动新 setup。被放弃的渲染不会执行其 Effect。useEffect 通常允许浏览器先绘制，交互触发的 Effect 也可能在绘制前执行，不能断言一定在绘制后执行；稳定边界是提交之后。开发 StrictMode 会额外执行 setup/cleanup 检查。
+  - **Java 类比**：依赖比较类似判断同步配置是否改变；框架选择同步和清理时机，而非业务代码每次调用 Hook 都直接执行同步任务。
+  - **总结**：渲染期间声明，提交之后执行，依赖决定是否重跑。空依赖数组不阻止组件重渲染，只阻止普通重渲染重新运行该 Effect。Effect 内发起请求不代表 React 等待请求；异步函数在响应就绪后独立恢复。
+- **掌握标记**：[ ] 待口试验证
+ 
+### Q-HOOK-REFETCH-ALIAS: TASK-005 中 `refetch: fetchData` 有什么作用？
+- **提问场景**：2026-10-04，学员询问 useUsers.ts 第 44 行的 refetch。
+- **核心解答 (Answer)**：
+  - **现象**：useFetch 返回对象中的 `refetch: fetchData`，让调用方可以通过 `refetch()` 再次请求数据。refetch 不是 TS 或 React 关键字，是开发者起的属性名。
+  - **原因**：内部函数名 fetchData 描述“获取数据”；对外属性名 refetch 描述“重新获取”，适合刷新和失败重试场景。
+  - **底层机制**：对象字面量 `属性名: 属性值` 将 fetchData 的函数引用保存到 refetch 属性，不会立即执行函数。调用 refetch() 时才执行 fetchData：设置 loading、清空 error、请求 URL、成功更新 data、失败更新 error，最后结束 loading。useUsers 解构取得 refetch，再用属性简写返回；UserManager 将它传给 onRefresh 和重试按钮的 onClick。Effect 负责首次加载和 URL 变化后的自动请求，refetch 提供手动触发入口。
+  - **Java 类比**：类似将方法引用 `this::fetchData` 保存到名为 refetch 的函数式接口变量；保存引用与调用方法是两个动作。
+  - **总结**：`refetch: fetchData` 是对外暴露函数引用；`refetch()` 才是发起请求。`onClick={refetch}` 把函数交给 React，点击时执行；不要写成 `onClick={refetch()}`，后者会在渲染期间调用。
+- **掌握标记**：[ ] 待口试验证
+
