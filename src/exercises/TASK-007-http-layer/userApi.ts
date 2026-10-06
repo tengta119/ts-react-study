@@ -14,9 +14,7 @@ import type { PageResult, UserQueryParams } from './types';
  *    因此这里写的 url 必须是**相对于 /api 的子路径**，
  *    写成 '/api/users/page' 会变成实际请求 '/api/api/users/page' → 404。
  */
-export async function fetchUserPage(
-  params: UserQueryParams
-): Promise<PageResult<ApiUser>> {
+export async function fetchUserPage(params: UserQueryParams): Promise<PageResult<ApiUser>> {
   // axios 的第二个参数对象用 params 字段承载查询参数：
   //  1. 自动序列化成 ?page=1&size=5
   //  2. 值为 undefined 的字段自动忽略（不会拼出 keyword=undefined）

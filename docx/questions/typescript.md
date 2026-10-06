@@ -327,3 +327,24 @@
   - **Java 类比**：Java Thread.sleep 会暂停当前线程，其他线程可以运行；普通 JS 页面代码在同一主线程执行，没有 async 函数的专属线程。JS 标准没有全局 Thread.sleep；用忙循环模拟等待会阻塞页面。
   - **总结**：决定因素不是等待时长，而是是否让出主线程。await new Promise<void>(resolve => setTimeout(resolve, delayMs)) 是非阻塞等待示意，调用所在函数需为 async 或处于支持顶层 await 的模块；它挂起该函数而不占住主线程。
 - **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-TS-DESTRUCTURED-PARAM: `({ isActive }: { isActive: boolean })` 是参数吗，为什么这样写？
+- **提问场景**：2026-10-06，阅读 TASK-006 的 getNavLinkStyle 时，对参数解构与类型注解混在一起的写法产生疑问。
+- **核心解答 (Answer)**：
+  - **现象**：这是箭头函数的参数列表，只有一个对象参数，并不是两个参数，也不是直接接收 boolean。
+  - **原因**：NavLink 的 style 回调收到一个状态对象；此函数只用其中的 isActive 属性，所以在参数位置直接解构。
+  - **底层机制**：冒号左侧的 `{ isActive }` 是 JavaScript 对象解构，将参数对象的 isActive 属性取出绑定到同名局部变量；冒号右侧的 `{ isActive: boolean }` 是 TypeScript 对整个参数对象的类型注解。它要求 isActive 为 boolean，并不赋值或设置默认值；编译后类型注解被移除，解构行为保留。
+  - **Java 类比**：相当于接收一个 DTO，然后在方法内部通过 getter 取出 isActive。TS 可直接写出对象结构作为参数类型，不需要为了这个小结构先定义命名接口。
+  - **总结**：一个对象参数 + 参数解构 + 对象类型注解。示例调用是 `getNavLinkStyle({ isActive: true })`，不是 `getNavLinkStyle(true)`。在 `style={getNavLinkStyle}` 中传的是函数，由 NavLink 调用并提供参数。
+- **等价展开（只展示参数机制）**：
+  ```ts
+  const readActive = (state: { isActive: boolean }) => {
+    const isActive = state.isActive;
+    return isActive;
+  };
+
+  const readActiveShort = ({ isActive }: { isActive: boolean }) => isActive;
+  ```
+- **掌握标记**：[ ] 待口试验证

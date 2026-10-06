@@ -436,3 +436,16 @@
 - **掌握标记**：[ ] 待主动回忆
 
 
+
+---
+
+### Q-AR-NAVLINK-STYLE-CALLBACK: 为什么 `style={getNavLinkStyle}` 能让 NavLink 自动调用函数？
+- **提问场景**：2026-10-06，TASK-006 中理解参数解构后，继续追问函数由谁调用、参数由谁提供。
+- **核心解答 (Answer)**：
+  - **现象**：`style={getNavLinkStyle}` 将函数值作为 prop 传入 NavLink，此处没有调用函数。
+  - **原因**：NavLink 专门支持 style 为样式对象或回调函数；其内部实现显式判断是否为函数，并在渲染时调用。这不是 JSX 自动执行任意函数 prop 的规则。
+  - **底层机制**：NavLink 根据当前路由计算 isActive，构造 renderProps，然后执行 `typeof styleProp === "function" ? styleProp(renderProps) : styleProp`，将结果作为链接的样式。路由变化引起 NavLink 重新渲染时，回调会再次计算样式，不需要点击此链接才调用。函数叫什么名字不重要，NavLink 通过 style prop 拿到它。
+  - **Java 类比**：类似将 `Function<NavState, Style>` 传给方法，接收方准备好 NavState 后执行 `styleFunction.apply(state)`。JS 函数可以直接作为值传递。
+  - **总结**：你提供计算规则，NavLink 提供路由状态并调用规则，函数返回样式对象。`style={getNavLinkStyle}` 传函数；`style={getNavLinkStyle({ isActive: true })}` 则是你立即调用并传入结果，固定的 true 不会自动跟随路由变化。
+- **验证依据**：本项目 node_modules/react-router/dist/development/chunk-HQO5H5CC.js 中 NavLinkWithRef 的实现；https://reactrouter.com/api/components/NavLink#style。
+- **掌握标记**：[ ] 待口试验证
