@@ -1,5 +1,17 @@
 # React Hooks 专题问答库 (docx/questions/hooks.md)
 
+### Q-HOOK-PAGED-ASYNC-AWAIT: fetchUserPage 是 async，为什么 usePagedUsers 调用前不用 await？
+- **提问场景**：2026-10-07，TASK-007 学员尝试写 `await usePagedUsers(fetchUserPage, 5)`，以为内部使用 async 函数会使整个 Hook 都需要 await。
+- **核心解答 (Answer)**：
+  - **现象**：组件调用 `usePagedUsers(fetchUserPage, 5)`，立即得到包含 users、loading 和操作函数的 `PagedUsersResult` 对象；它不是 Promise。首次渲染 users 为 []、loading 为 true。
+  - **原因**：`fetchUserPage` 没有括号，表示把函数引用传给 Hook，并未在此调用请求函数。Hook 本身是同步函数，返回当前渲染的状态快照。函数内部使用异步操作，不会自动使外层函数返回 Promise。
+  - **底层机制**：Hook 渲染时注册 Effect 并返回状态对象；提交后 Effect 调用内部 async load；load 使用 `await fetcher({...})` 等待分页请求，在本例中 fetcher 就是 fetchUserPage。成功后通过 setter 更新状态，React 再次渲染，组件再次调用 Hook 才取得新的状态快照。此前解构出的 users 变量不会原地变成请求结果。Effect 使用 `void load()` 表示有意不消费返回的 Promise，它既不等待，也不取消请求或自动处理异常；本例请求错误由 load 内的 try/catch 处理。
+  - **Java 类比**：传 fetchUserPage 类似传 `this::fetchUserPage` 方法引用；调用 fetchUserPage(params) 得到 Promise，类似 CompletableFuture<PageResult<ApiUser>>。Hook 类似立即提供当前 UI 状态的同步入口，随后异步回调更新状态；不是阻塞等待网络的服务方法。await 暂停当前 async 函数的后续执行，不阻塞 JS 主线程。
+  - **总结**：需要等待异步结果时，可在 async 函数内 `await fetchUserPage(params)`，也可用 `.then/.catch` 处理。组件这里应保持 `const {...} = usePagedUsers(fetchUserPage, 5)`。await 普通对象也会产生异步暂停，但不会等待该对象背后的网络请求；当前普通客户端组件不应为此改成 async，自定义 Hook 也应同步返回状态。async 函数可以返回 Promise，语言并不禁止手写 new Promise；原注释的“不能”过于绝对，本例只是不需要手动包装。
+- **掌握标记**：[ ] 待口试验证
+
+---
+
 > 归档范围：`useState`, `useEffect` 依赖项与生命周期心智、`useRef` 跨渲染持久化、自定义 Hook 及常见闭包陷阱。
 
 ---

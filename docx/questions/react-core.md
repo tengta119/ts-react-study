@@ -489,3 +489,16 @@
   - **Java 类比**：类似丢弃旧的界面上下文再创建新的上下文；请求缓存或父级存储可继续存在，但组件本地状态不会自动持久化。
   - **总结**：JSX 中真正不再渲染该组件才是移除；CSS display:none 只是隐藏，通常仍保留组件及其 state/Effect。隐藏的组件不会因此自动执行卸载清理；父组件和子组件的普通更新同样不意味着重新挂载。
 - **掌握标记**：[ ] 待口试验证
+
+---
+
+### Q-RC-AUTH-PROVIDER-VALUE: TASK-008 为什么要给 AuthContext.Provider 传 value？
+- **提问场景**：2026-10-07，学员询问 AuthProvider.tsx 中 value={value} 的作用。
+- **核心解答 (Answer)**：
+  - **现象**：AuthProvider 把 user、initializing、login、logout 打包成对象，通过 Provider 的 value 属性提供给后代组件。LoginPage 用 useAuth() 取得 login，ProtectedRoute 取得 user 和 initializing，AppHeader 取得 user 和 logout。
+  - **原因**：这些状态和函数是 AuthProvider 内部的局部变量，后代组件无法直接访问；Context 让需要它们的后代读取数据，无需中间组件逐层转发 props。
+  - **底层机制**：value={value} 左侧是 React Provider 规定的属性名，右侧是当前作用域的变量名，可改名为 authValue。createContext 创建上下文标识；Provider 提供具体值；useContext(AuthContext) 读取组件树中最近的对应祖先 Provider 的 value。项目的 useAuth() 封装了该读取及 null 检查。children 是被包裹的内容，value 是提供给消费者的数据，不会自动成为每个子组件的普通 props。login/logout 是函数引用，此处不执行。登录中的 setUser 更新 state，引发 AuthProvider 重渲染并生成新的 value；React 以 Object.is 比较前后 value，变化时更新读取该 Context 的组件。直接修改 value.user 不会替代 setUser。没有对应祖先 Provider 时读取 createContext 的默认 null，本项目 useAuth 会报错；已有 Provider 却省略 value，不会回退到默认值。
+  - **Java 类比**：类似向作用域中的组件提供认证上下文，业务组件按需取得用户信息和操作入口；React 的作用域是组件树子树，不是 SecurityContextHolder 的线程作用域，也不是整个应用唯一的全局变量。
+  - **总结**：Provider 负责提供，value 指定提供什么，useAuth/useContext 负责读取；state 仍由 AuthProvider 管理。
+- **参考资料**：[React createContext](https://react.dev/reference/react/createContext)、[React useContext](https://react.dev/reference/react/useContext)。
+- **掌握标记**：[ ] 待口试验证
